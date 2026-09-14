@@ -16,10 +16,32 @@ from tc_database.experience import (
     ExperienceRecord,
     ExperienceStore,
     InMemoryExperienceStore,
+    new_record,
+)
+from tc_database.trades import (
+    load_trades,
+    payload_to_trade,
+    persist_trade,
+    trade_to_payload,
 )
 
 __all__ = [
     "ExperienceRecord",
     "ExperienceStore",
     "InMemoryExperienceStore",
+    "new_record",
+    "load_trades",
+    "persist_trade",
+    "payload_to_trade",
+    "trade_to_payload",
 ]
+
+
+def open_duckdb_store(path: str = ":memory:"):
+    """Lazily construct a DuckDBExperienceStore (requires the optional ``duckdb`` dep).
+
+    Kept as a function so importing this package never hard-requires duckdb.
+    """
+    from tc_database.duckdb_store import DuckDBExperienceStore
+
+    return DuckDBExperienceStore(path)

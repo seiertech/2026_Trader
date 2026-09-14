@@ -9,7 +9,7 @@ permission to scaffold dozens of incomplete modules).
 |------:|-------|--------|
 | 0 | Foundation: domain model, config, database, logging, tests, dashboard shell | ✅ **done** |
 | 1 | MT5 live read (needs Windows host — TC-ADR-032) | 🟡 contracts + replay provider done; live Mt5 adapter pending Windows host |
-| 2 | Historical market store: canonical bars, aggregation, replay | 🟡 replay + aggregation done; DuckDB persistence + full history pending |
+| 2 | Historical market store: canonical bars, aggregation, replay | 🟡 replay + aggregation + DuckDB persistence done; full history pending |
 | 3 | Quant: regime, trend, momentum, structure, volatility | 🟡 indicators + regime classifier done; specialist depth pending |
 | 10 | Shadow: sizing, cost model, simulated execution, metrics | 🟡 simulator + metrics done; full portfolio/session modelling pending |
 | 4 | News intelligence | ⏳ |
@@ -74,3 +74,30 @@ affordability guard correctly rejects every setup — a £250 account cannot hol
 position tight intraday stops demand. No edge is claimed (TC-ADR-020).
 
 **Tests:** 68 total (64 unit + 4 golden-path integration), all passing; ruff clean.
+
+## Persistence — DuckDB Experience Store (§48, §88, §90)
+
+The Experience Store is now durable, so run results survive for later learning:
+
+- `packages/database` (`tc_database`) — `DuckDBExperienceStore` implements the existing
+  `ExperienceStore` protocol; append-only and immutable **at the DB layer** (re-writing
+  an id is rejected; no update/delete methods exist — removing auditability needs an
+  ADR). UTC ISO-8601 timestamps, JSON payloads, insertion order preserved.
+- `tc_database.trades` — serialises a `SimulatedTrade` ↔ `ExperienceRecord` exactly
+  (Decimals as strings, no float drift), carrying the §77a sizing audit; `persist_trade`
+  / `load_trades` helpers keep the shadow engine storage-agnostic.
+- Runtime: `run_golden_path(..., store=...)` persists each trade. CLI:
+  `tc golden-path --persist run.duckdb` writes to a file; reopening reconstructs the
+  trades exactly.
+
+**Tests:** 94 total (+9: DuckDB append/get/all/count, re-write rejected, no update/
+delete, UTC round-trip, survives reopen, exact trade round-trip, duplicate rejected,
+golden-path→DuckDB→reload). ruff clean.
+
+## Fractional Kelly sizing (§77a, TC-CR-001, TC-ADR-042)
+
+`packages/risk-engine` (`tc_risk`): fractional Kelly (quarter-Kelly default, capped
+0.50), positive-edge gate, §77 ceiling clamp (never raises), unvalidated→fixed-risk
+fallback, conservative lower-bound estimate, full audit record, per-mode inputs. Wired
+into the simulator; the demo strategy is unvalidated so it correctly falls back to the
+fixed 1% research risk.

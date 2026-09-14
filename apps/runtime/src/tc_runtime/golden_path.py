@@ -51,13 +51,22 @@ def run_golden_path(
     forward_bars: int = 24,          # how many decision-TF bars a trade may run
     reentry_cooldown_bars: int = 6,  # avoid stacking overlapping trades on one signal
     starting_balance: Decimal = Decimal("250"),
+    store: object | None = None,     # optional ExperienceStore to persist trades into
 ) -> GoldenPathResult:
     """Run the golden path over a replay CSV and return trades + metrics.
+
+    If ``store`` (an ExperienceStore) is given, each simulated trade is appended to it
+    as an immutable experience record (§88) — this is how a run's results survive for
+    later learning/attribution.
 
     Imports the provider lazily so the runtime has no hard import-time coupling to a
     concrete provider (the Windows Mt5 provider swaps in here later, ADR-032).
     """
     from tc_market_data.replay import interval_delta, provider_from_csv
+
+    persist = None
+    if store is not None:
+        from tc_database.trades import persist_trade as persist
 
     mode = OperatingMode.SHADOW  # asserted: no broker orders (§79)
 
@@ -112,6 +121,8 @@ def run_golden_path(
         trade = sim.simulate(intent, future)
         if trade is not None:
             trades.append(trade)
+            if persist is not None:
+                persist(store, trade)
             cooldown_until = i + reentry_cooldown_bars
 
     return GoldenPathResult(
