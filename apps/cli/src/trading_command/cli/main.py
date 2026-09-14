@@ -67,6 +67,7 @@ def cmd_golden_path(_: argparse.Namespace) -> int:
     sys.path.insert(0, str(_ROOT / "packages" / "quant-engine" / "src"))
     sys.path.insert(0, str(_ROOT / "packages" / "market-data" / "src"))
     sys.path.insert(0, str(_ROOT / "packages" / "shadow-engine" / "src"))
+    sys.path.insert(0, str(_ROOT / "packages" / "risk-engine" / "src"))
     sys.path.insert(0, str(_ROOT / "apps" / "runtime" / "src"))
     from tc_runtime.golden_path import format_report, run_golden_path
 

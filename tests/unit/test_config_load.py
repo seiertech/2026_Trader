@@ -22,10 +22,31 @@ def test_default_config_loads() -> None:
     assert cfg.runtime.reference_unit_gbp == 250
 
 
-def test_all_17_risk_controls_present() -> None:
+def test_all_risk_controls_present() -> None:
     cfg = load_config(CONFIG_DIR)
     assert set(cfg.risk.risk_controls) >= REQUIRED_RISK_CONTROLS
-    assert len(REQUIRED_RISK_CONTROLS) == 17
+    # 17 original §77 controls + KELLY_FRACTION (§77a, TC-CR-001) = 18.
+    assert len(REQUIRED_RISK_CONTROLS) == 18
+    assert "KELLY_FRACTION" in REQUIRED_RISK_CONTROLS
+
+
+def test_kelly_fraction_default_is_quarter() -> None:
+    cfg = load_config(CONFIG_DIR)
+    assert float(cfg.risk.risk_controls["KELLY_FRACTION"]) == 0.25  # §77a default
+
+
+def test_kelly_fraction_above_cap_fails_closed(tmp_path) -> None:
+    # A KELLY_FRACTION over 0.50 (full-Kelly-ward) must be rejected at load (§77a).
+    import shutil
+
+    cfgdir = tmp_path / "config"
+    shutil.copytree(CONFIG_DIR, cfgdir)
+    risk = (cfgdir / "risk.yaml").read_text().replace(
+        "KELLY_FRACTION:           0.25", "KELLY_FRACTION:           0.75"
+    )
+    (cfgdir / "risk.yaml").write_text(risk)
+    with pytest.raises(ConfigError):
+        load_config(cfgdir)
 
 
 def test_eight_canonical_instruments_and_none_live() -> None:

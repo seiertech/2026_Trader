@@ -67,3 +67,10 @@ numbers TC-ADR-033-series continuation (035–041 to avoid clashing with 031–0
 | TC-ADR-039 | TC-ADR-025 | Both a web Control Plane and a lightweight CLI/operator console |
 | TC-ADR-040 | TC-ADR-026 | Strategy/config versions retained with performance records |
 | TC-ADR-041 | TC-ADR-027 | Measure performance contribution of strategies/agents/evidence/filters/critic |
+
+
+## Change-request decisions
+
+| Working # | CR / source | Maps to | Subject | Doc |
+|---|---|---|---|---|
+| TC-ADR-042 | TC-CR-001 | CR's "TC-ADR-028 (v1.3)" | Fractional Kelly position sizing (quarter-Kelly default, validated-OOS-only, §77-capped, unproven→fixed/zero) | TC-ADR-042-fractional-kelly-sizing.md |

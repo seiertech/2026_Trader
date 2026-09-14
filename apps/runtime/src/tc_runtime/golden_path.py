@@ -63,7 +63,18 @@ def run_golden_path(
 
     provider = provider_from_csv(csv_path, instrument, Timeframe.M1)
     account = ShadowAccount(starting_balance)
-    sim = ShadowSimulator(account, CostModel(), risk_fraction=Decimal("0.01"))
+    # §77a: fractional Kelly is wired in, but the demo strategy is UNVALIDATED (no
+    # out-of-sample stats exist yet), so sizing falls back to the fixed §76 research
+    # risk — exactly as TC-CR-001 mandates. Kelly activates only once a strategy
+    # passes the §75/§87 gates and a validated EdgeStats is supplied to simulate().
+    sim = ShadowSimulator(
+        account,
+        CostModel(),
+        risk_fraction=Decimal("0.01"),       # §76 fixed research default
+        kelly_fraction=Decimal("0.25"),      # §77a quarter-Kelly
+        max_risk_per_trade=Decimal("0.01"),  # §77 ceiling
+        mode=mode,
+    )
 
     # Walk the whole 1m series to build the full set of decision-TF bars.
     while provider.step() is not None:

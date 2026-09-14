@@ -574,7 +574,65 @@ instrument-specific minimum positions.
 MAX_RISK_PER_TRADE, MAX_DAILY_LOSS, MAX_WEEKLY_LOSS, MAX_DRAWDOWN, MAX_OPEN_RISK,
 MAX_POSITIONS, MAX_LEVERAGE, MAX_CORRELATED_EXPOSURE, MAX_INSTRUMENT_EXPOSURE,
 MIN_REWARD_RISK, MAX_SPREAD, MAX_SLIPPAGE, MAX_CONSECUTIVE_LOSSES, MANDATORY_STOP,
-EVENT_BLACKOUT, STALE_DATA_BLOCK, KILL_SWITCH.
+EVENT_BLACKOUT, STALE_DATA_BLOCK, KILL_SWITCH, KELLY_FRACTION.
+
+> `KELLY_FRACTION` added by TC-CR-001 (see §77a). Default 0.25 (quarter-Kelly),
+> config-driven, MUST NOT exceed 0.50.
+
+## 77a. Position Sizing (added by TC-CR-001)
+
+The Risk Engine SHALL size positions using the **Kelly criterion**, applied
+fractionally and subordinate to all deterministic risk ceilings in §77.
+
+**Formula.**
+
+```text
+f* = (b·p − q) / b
+  p  = validated probability of a winning trade for the strategy/cell
+  q  = 1 − p
+  b  = validated payoff ratio (average win / average loss, in R)
+  f* = growth-optimal fraction of capital to risk
+```
+
+**Fractional Kelly.** The system SHALL NOT bet full Kelly:
+
+```text
+f_applied = KELLY_FRACTION × f*
+KELLY_FRACTION default = 0.25 (quarter-Kelly); config-driven; SHALL NOT exceed 0.50.
+```
+
+**Ceiling, not mandate.** `f_applied` is an upper suggestion only:
+
+```text
+risk_per_trade = min( f_applied , MAX_RISK_PER_TRADE )
+```
+
+and SHALL additionally respect every other §77 control (MAX_OPEN_RISK,
+MAX_CORRELATED_EXPOSURE, MAX_INSTRUMENT_EXPOSURE, MAX_POSITIONS, MIN_REWARD_RISK,
+etc.). Any breach SHALL reduce or reject the size. **Kelly SHALL NEVER raise risk
+above a §77 ceiling.**
+
+**Positive-edge gate.** Kelly sizes a trade only when `f* > 0` (i.e. `b·p > q`). If
+`f* ≤ 0`, the deterministic outcome SHALL be `NO_POSITIVE_EDGE → size = 0 → no trade`.
+
+**Unvalidated strategies.** `p` and `b` SHALL be drawn only from **validated,
+out-of-sample** statistics satisfying the §75 promotion gates and §87 Shadow
+validation (including minimum sample size). Where a strategy/cell has NOT met those
+gates, Kelly SHALL NOT be used; sizing SHALL default to a **fixed minimal research
+risk** (the §76 default) or zero. Kelly is never applied to an unproven edge estimate.
+
+**Estimation safety.** `p` and `b` are estimates, not truths. The system SHOULD size
+against a conservative (lower-confidence-bound) estimate of edge rather than the point
+estimate, so estimation error biases toward under-betting.
+
+**Auditability.** The inputs to every sizing decision SHALL be recorded in the trade's
+immutable Evidence Pack: `p_used`, `b_used`, `sample_size`, `kelly_fraction`,
+`f_star`, `f_applied`, `binding_constraint` (kelly | MAX_RISK_PER_TRADE |
+MAX_OPEN_RISK | correlated | other), `mode`.
+
+**Mode independence.** Kelly inputs SHALL be computed per mode. SHADOW-derived `p`/`b`
+SHALL NOT size PAPER or LIVE trades, and vice versa (Performance Data Integrity:
+separate ledgers per mode).
 
 ---
 
@@ -1394,3 +1452,32 @@ The £250 references that remain denote the reference unit and the
 realistic-fill constraint on the simulator; they carry no growth expectation.
 
 **END OF TC-SPEC-001 v1.3**
+
+---
+
+# TC-CR-001 — POSITION SIZING (FRACTIONAL KELLY)
+
+**Type:** Additive · **Status:** BUILD AUTHORITY (merged) · **Target:** v1.3
+
+Adds **§77a Position Sizing** (fractional Kelly), adds `KELLY_FRACTION` to the §77
+control list, and records one new ADR.
+
+**New ADR — TC-ADR-042 (working number).** Position sizing SHALL use fractional Kelly
+(default quarter-Kelly), computed only from validated out-of-sample statistics, always
+capped by deterministic §77 risk ceilings, defaulting to zero/minimal fixed risk when
+edge is unproven or non-positive. Kelly is a ceiling and a discipline, never a mandate
+to increase risk.
+
+> **ADR numbering note.** TC-CR-001 proposed this as "TC-ADR-028 (v1.3)". In this
+> repo's working register the 021–030 range is already occupied by the v1.1 block and
+> the v1.2 block was renumbered to 035–041 (see TC-ADR-033). The next free number is
+> therefore **TC-ADR-042**, which is used here and mapped back to the CR's "028" in
+> `docs/decisions/REGISTER.md`. The CR's intent is unchanged; only the identifier is
+> adapted to the resolved register.
+
+**Build tier.** The positive-edge gate (`f* ≤ 0 → NO_POSITIVE_EDGE → size 0`) and the
+§77 ceiling clamp are **deterministic policy code**, in the same un-overridable tier
+as the crypto prohibition and the Prime Directive. AI SHALL NOT override them. Options/
+Black-Scholes machinery is out of scope (§6).
+
+**END OF TC-CR-001**

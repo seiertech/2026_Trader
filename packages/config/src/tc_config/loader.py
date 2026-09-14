@@ -22,9 +22,12 @@ REQUIRED_RISK_CONTROLS: frozenset[str] = frozenset(
         "MAX_OPEN_RISK", "MAX_POSITIONS", "MAX_LEVERAGE", "MAX_CORRELATED_EXPOSURE",
         "MAX_INSTRUMENT_EXPOSURE", "MIN_REWARD_RISK", "MAX_SPREAD", "MAX_SLIPPAGE",
         "MAX_CONSECUTIVE_LOSSES", "MANDATORY_STOP", "EVENT_BLACKOUT",
-        "STALE_DATA_BLOCK", "KILL_SWITCH",
+        "STALE_DATA_BLOCK", "KILL_SWITCH", "KELLY_FRACTION",
     }
 )
+
+# Fractional Kelly hard cap (§77a, TC-CR-001): full Kelly is forbidden.
+KELLY_FRACTION_MAX = 0.50
 
 
 class ConfigError(Exception):
@@ -53,6 +56,16 @@ class RiskConfig(BaseModel):
         if missing:
             raise ValueError(
                 f"risk.yaml missing required controls (§77): {sorted(missing)}"
+            )
+        # KELLY_FRACTION must be present, positive, and never exceed the 0.50 cap
+        # (§77a, TC-CR-001) — full Kelly is forbidden. Fail closed on a bad value.
+        kf = v.get("KELLY_FRACTION")
+        if kf is None or not isinstance(kf, (int, float)) or isinstance(kf, bool):
+            raise ValueError("KELLY_FRACTION must be a number (§77a)")
+        if not (0.0 < float(kf) <= KELLY_FRACTION_MAX):
+            raise ValueError(
+                f"KELLY_FRACTION={kf} out of range (0, {KELLY_FRACTION_MAX}] "
+                "— full Kelly is forbidden (§77a, TC-CR-001)"
             )
         return v
 

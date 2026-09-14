@@ -150,3 +150,40 @@ def test_empty_metrics_are_zeroed() -> None:
     m = compute_metrics([])
     assert m.trades == 0
     assert m.profit_factor is None
+
+
+
+def test_simulator_no_trade_on_validated_negative_edge() -> None:
+    """§77a: a validated but non-positive edge → NO_POSITIVE_EDGE → no trade."""
+    from tc_domain.enums import OperatingMode
+    from tc_risk.kelly import EdgeStats
+
+    acct = ShadowAccount(Decimal("250"))
+    sim = ShadowSimulator(acct, CostModel(), mode=OperatingMode.SHADOW)
+    intent = TradeIntent(
+        instrument="XAUUSD", direction="LONG",
+        entry_price=Decimal("2650"), stop_price=Decimal("2645"),
+        target_price=Decimal("2660"),
+        decided_at=datetime(2026, 1, 5, tzinfo=UTC),
+    )
+    bad_edge = EdgeStats(p=0.30, b=1.0, sample_size=500, mode=OperatingMode.SHADOW, validated=True)
+    t = sim.simulate(intent, [_bar(1, "2650", "2661", "2649", "2660")], edge=bad_edge)
+    assert t is None  # f* <= 0 → no position
+
+
+def test_simulator_records_sizing_audit() -> None:
+    """Every simulated trade carries the §77a sizing audit record."""
+    acct = ShadowAccount(Decimal("250"))
+    sim = ShadowSimulator(acct, CostModel())
+    intent = TradeIntent(
+        instrument="XAUUSD", direction="LONG",
+        entry_price=Decimal("2650"), stop_price=Decimal("2645"),
+        target_price=Decimal("2660"),
+        decided_at=datetime(2026, 1, 5, tzinfo=UTC),
+    )
+    t = sim.simulate(intent, [_bar(1, "2650", "2661", "2649", "2660")])
+    assert t is not None
+    assert t.sizing_audit is not None
+    # No edge supplied → fixed research fallback (unvalidated).
+    assert t.sizing_audit["binding_constraint"] == "unvalidated_fallback"
+    assert t.sizing_audit["mode"] == "SHADOW"

@@ -22,7 +22,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
+from tc_domain.enums import OperatingMode
 from tc_domain.market import Bar
+from tc_risk.kelly import EdgeStats, SizingResult, size_risk_fraction
 
 from tc_shadow.account import ShadowAccount
 from tc_shadow.costs import CostModel
@@ -63,6 +65,9 @@ class SimulatedTrade:
     mae_r: Decimal
     exit_reason: str  # "TARGET" | "STOP" | "TIME"
     evidence_pack_id: str = ""
+    # §77a sizing audit (TC-CR-001): recorded so we can later check whether the edge
+    # estimate used for sizing was borne out. Empty for legacy fixed-fraction calls.
+    sizing_audit: dict[str, object] | None = None
 
 
 class ShadowSimulator:
@@ -73,16 +78,32 @@ class ShadowSimulator:
         account: ShadowAccount,
         cost_model: CostModel,
         *,
-        risk_fraction: Decimal = Decimal("0.01"),  # §76 initial 1%
+        risk_fraction: Decimal = Decimal("0.01"),  # §76 fixed research default
+        kelly_fraction: Decimal = Decimal("0.25"),  # §77a quarter-Kelly default
+        max_risk_per_trade: Decimal = Decimal("0.01"),  # §77 ceiling
+        mode: OperatingMode = OperatingMode.SHADOW,
     ) -> None:
         self._account = account
         self._costs = cost_model
         self._risk_fraction = risk_fraction
+        self._kelly_fraction = kelly_fraction
+        self._max_risk_per_trade = max_risk_per_trade
+        self._mode = mode
 
     def simulate(
-        self, intent: TradeIntent, future_bars: Sequence[Bar]
+        self,
+        intent: TradeIntent,
+        future_bars: Sequence[Bar],
+        *,
+        edge: EdgeStats | None = None,
+        remaining_open_risk: Decimal | None = None,
     ) -> SimulatedTrade | None:
         """Simulate ``intent`` over ``future_bars`` (bars AT/AFTER the entry bar).
+
+        Sizing follows §77a (fractional Kelly, TC-CR-001): if ``edge`` is a validated,
+        matching-mode estimate, size via Kelly capped by the §77 ceilings; otherwise
+        fall back to the fixed §76 research risk. A NO_POSITIVE_EDGE result means no
+        trade. The full sizing audit is recorded on the returned trade.
 
         Returns None if the trade cannot be sized/afforded (§85) — a valid "no trade".
         ``future_bars`` must be the bars available going forward; passing only
@@ -100,9 +121,22 @@ class ShadowSimulator:
         if risk_per_unit == 0:
             return None  # no stop distance → cannot risk-size (fail closed)
 
+        # §77a: determine the risk-per-trade fraction (Kelly or fixed fallback).
+        sizing: SizingResult = size_risk_fraction(
+            edge,
+            max_risk_per_trade=self._max_risk_per_trade,
+            kelly_fraction_setting=self._kelly_fraction,
+            fixed_research_risk=self._risk_fraction,
+            remaining_open_risk=remaining_open_risk,
+            mode=self._mode,
+        )
+        # Positive-edge gate: f* <= 0 → size 0 → no trade (deterministic, §77a).
+        if sizing.risk_fraction <= 0:
+            return None
+
         size = size_position(
             reference_unit=self._account.starting_balance,
-            risk_fraction=self._risk_fraction,
+            risk_fraction=sizing.risk_fraction,
             entry_price=entry,
             stop_price=stop,
             value_per_price_unit=self._costs.value_per_price_unit,
@@ -176,4 +210,5 @@ class ShadowSimulator:
             mae_r=worst,
             exit_reason=exit_reason,
             evidence_pack_id=intent.evidence_pack_id,
+            sizing_audit=sizing.audit_fields(),
         )

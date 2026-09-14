@@ -25,3 +25,6 @@ risk_controls:
   EVENT_BLACKOUT:           true      # block new entries around high-impact events
   STALE_DATA_BLOCK:         true      # block trading on stale market data (§104)
   KILL_SWITCH:              false     # operator hard-off; true = all trading halted
+  KELLY_FRACTION:           0.25      # fractional Kelly (§77a, TC-CR-001). Quarter-
+                                      # Kelly default; config-driven; MUST NOT exceed
+                                      # 0.50 (loader enforces).
