@@ -19,7 +19,7 @@ permission to scaffold dozens of incomplete modules).
 | 8 | Historical analogues | ⏳ |
 | 9 | AI (abstraction, specialists, critic) | ⏳ |
 | 10 | Shadow (£250 virtual account, simulated execution, cost modelling) | ⏳ |
-| 11 | Learning (forward labels, agent/strategy/filter contribution) | ⏳ |
+| 11 | Learning (forward labels, agent/strategy/filter contribution) | 🟡 forward-outcome labelling + per-cell attribution + small-sample honesty done; agent/filter contribution pending |
 | 12 | Control plane (full cockpit, performance, explainability) | ⏳ |
 | 13 | Paper | ⏳ |
 | 14 | Limited live (gated, evidence-earned) | ⏳ |
@@ -101,3 +101,34 @@ golden-path→DuckDB→reload). ruff clean.
 fallback, conservative lower-bound estimate, full audit record, per-mode inputs. Wired
 into the simulator; the demo strategy is unvalidated so it correctly falls back to the
 fixed 1% research risk.
+
+## Learning / attribution — Phase 11 slice (§49, §50, §53, §91)
+
+Turns accumulated experience into knowledge about where edge exists (the Prime
+Directive's purpose, §0/§130):
+
+- `packages/learning-engine` (`tc_learning`):
+  - `labelling.py` — forward-outcome labelling (§49): for a decision at time T,
+    records the market's return at 5m/15m/30m/1h/4h/1d, oriented to the opportunity's
+    bias. Horizons beyond the data are `None`, never fabricated. Keyed to the decision
+    instant (no leak-back, §89).
+  - `attribution.py` — per-cell attribution (§91): groups outcomes by
+    instrument/regime/direction (etc.) and reports sample size, win rate, expectancy
+    in R (the headline), profit factor. **Small-sample honesty (§53):** cells below
+    30 trades are flagged WEAK; adequate cells are only PROVISIONAL — never
+    auto-"proven" (that needs the §75 gates).
+- `tc_database.labels` — persists every opportunity's forward label, **traded AND
+  rejected** (§50: rejected candidates must be measured, so we can later ask whether
+  the filters/critic improved expectancy). Immutable/append-only like all experience.
+- Runtime forward-labels every opportunity and persists rejections. CLI: `tc
+  golden-path --persist run.duckdb` records trades + labels; `tc attribution
+  run.duckdb --by instrument,direction` prints the per-cell table.
+
+**Demonstrated:** at 15m on the sample, all 55 opportunities are rejected by the §85
+affordability guard — and all 55 are still forward-labelled and stored (§50 working).
+At 1h, the single trade is flagged ⚠ WEAK in attribution (n=1 ≪ 30) — the system
+refuses to treat one result as evidence of edge (§53).
+
+**Tests:** 107 total (+13: labelling per-horizon + bias orientation + missing→None,
+attribution grouping/expectancy/sorting, WEAK vs PROVISIONAL, rejected-opportunity
+persistence). ruff clean.

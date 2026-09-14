@@ -41,6 +41,7 @@ class GoldenPathResult:
     metrics: PerformanceMetrics
     starting_balance: Decimal
     ending_balance: Decimal
+    rejected: int = 0  # opportunities detected but not taken (§50) — still labelled
 
 
 def run_golden_path(
@@ -65,8 +66,14 @@ def run_golden_path(
     from tc_market_data.replay import interval_delta, provider_from_csv
 
     persist = None
+    persist_label = None
     if store is not None:
+        from tc_database.labels import persist_opportunity_label as persist_label
         from tc_database.trades import persist_trade as persist
+
+    # Forward-outcome labeller is always used (traded AND rejected, §49/§50); it only
+    # persists when a store is given.
+    from tc_learning.labelling import label_forward_outcomes
 
     mode = OperatingMode.SHADOW  # asserted: no broker orders (§79)
 
@@ -93,6 +100,7 @@ def run_golden_path(
     tf_delta = interval_delta(decision_timeframe)
     trades: list[SimulatedTrade] = []
     opportunities = 0
+    rejected = 0
     cooldown_until = -1
 
     # At decision index i, the strategy sees bars[:i+1] (all closed) and the trade is
@@ -110,20 +118,42 @@ def run_golden_path(
         future = tf_bars[i + 1 : i + 1 + forward_bars]
         if not future:
             break
+        decided_at = tf_bars[i].open_time + tf_delta
+        # Forward-label EVERY opportunity — traded or not (§49/§50). The label uses the
+        # forward bars; it is keyed to the decision instant and never leaks back (§89).
+        label = label_forward_outcomes(
+            decided_at=decided_at,
+            reference_price=setup.entry_price,
+            bias=setup.direction,
+            future_bars=future,
+        )
+        cell = {"instrument": instrument, "regime": regime.regime.value,
+                "direction": setup.direction}
+
         intent = TradeIntent(
             instrument=instrument,
             direction=setup.direction,
             entry_price=setup.entry_price,
             stop_price=setup.stop_price,
             target_price=setup.target_price,
-            decided_at=tf_bars[i].open_time + tf_delta,
+            decided_at=decided_at,
         )
         trade = sim.simulate(intent, future)
         if trade is not None:
             trades.append(trade)
             if persist is not None:
                 persist(store, trade)
+            if persist_label is not None:
+                persist_label(store, instrument=instrument, outcome="TRADED",
+                              reject_reason="", label=label, cell=cell)
             cooldown_until = i + reentry_cooldown_bars
+        else:
+            # Opportunity detected but not taken (unaffordable / no positive edge, §85/§77a).
+            # §50: measure what WOULD have happened — persist the rejection + its label.
+            rejected += 1
+            if persist_label is not None:
+                persist_label(store, instrument=instrument, outcome="REJECTED",
+                              reject_reason="not_sized_or_afforded", label=label, cell=cell)
 
     return GoldenPathResult(
         instrument=instrument,
@@ -134,6 +164,7 @@ def run_golden_path(
         metrics=compute_metrics(trades),
         starting_balance=starting_balance,
         ending_balance=account.balance,
+        rejected=rejected,
     )
 
 
@@ -148,6 +179,7 @@ def format_report(result: GoldenPathResult) -> str:
         f"  decision bars     : {result.bars_processed}",
         f"  opportunities     : {result.opportunities}",
         f"  trades simulated  : {m.trades}",
+        f"  rejected (labelled): {result.rejected}   (measured anyway, §50)",
         "",
         f"  wins / losses     : {m.wins} / {m.losses}   (win rate {m.win_rate})",
         f"  profit factor     : {pf}",

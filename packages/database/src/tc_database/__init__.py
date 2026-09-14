@@ -18,6 +18,10 @@ from tc_database.experience import (
     InMemoryExperienceStore,
     new_record,
 )
+from tc_database.labels import (
+    load_opportunity_labels,
+    persist_opportunity_label,
+)
 from tc_database.trades import (
     load_trades,
     payload_to_trade,
@@ -34,6 +38,8 @@ __all__ = [
     "persist_trade",
     "payload_to_trade",
     "trade_to_payload",
+    "load_opportunity_labels",
+    "persist_opportunity_label",
 ]
 
 

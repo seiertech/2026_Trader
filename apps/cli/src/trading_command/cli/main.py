@@ -64,7 +64,8 @@ def cmd_markets(_: argparse.Namespace) -> int:
 
 def cmd_golden_path(args: argparse.Namespace) -> int:
     # Lazy import so the CLI's read-only commands don't pull the runtime/engines.
-    for pkg in ("quant-engine", "market-data", "shadow-engine", "risk-engine", "database"):
+    for pkg in ("quant-engine", "market-data", "shadow-engine", "risk-engine",
+                "database", "learning-engine"):
         sys.path.insert(0, str(_ROOT / "packages" / pkg / "src"))
     sys.path.insert(0, str(_ROOT / "apps" / "runtime" / "src"))
     from tc_runtime.golden_path import format_report, run_golden_path
@@ -87,6 +88,27 @@ def cmd_golden_path(args: argparse.Namespace) -> int:
         print(f"\n  persisted {len(result.trades)} trade(s) to {persist_path} "
               f"(store now holds {store.count()} experience record(s))")
         store.close()
+    return 0
+
+
+def cmd_attribution(args: argparse.Namespace) -> int:
+    for pkg in ("database", "shadow-engine", "risk-engine", "learning-engine"):
+        sys.path.insert(0, str(_ROOT / "packages" / pkg / "src"))
+    from pathlib import Path as _Path
+
+    from tc_database import load_trades, open_duckdb_store
+    from tc_learning.attribution import attribute, format_attribution
+
+    if not _Path(args.store).exists():
+        print(f"store not found: {args.store}", file=sys.stderr)
+        return 2
+    store = open_duckdb_store(args.store)
+    trades = load_trades(store)
+    dims = tuple(d.strip() for d in args.by.split(",") if d.strip())
+    print(f"── ATTRIBUTION · {args.store} · by {' / '.join(dims)} ──")
+    print(f"  {len(trades)} persisted trade(s)\n")
+    print(format_attribution(attribute(trades, dims)))
+    store.close()
     return 0
 
 
@@ -116,6 +138,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="persist simulated trades to a DuckDB experience store at PATH",
     )
     gp.set_defaults(fn=cmd_golden_path)
+    att = sub.add_parser(
+        "attribution", help="per-cell performance attribution over a persisted store"
+    )
+    att.add_argument("store", metavar="PATH.duckdb", help="DuckDB experience store to read")
+    att.add_argument(
+        "--by", default="instrument,direction",
+        help="comma-separated attribution dimensions (default: instrument,direction)",
+    )
+    att.set_defaults(fn=cmd_attribution)
     stubbed = (
         "opportunities", "positions", "performance", "risk",
         "events", "pause", "resume-shadow",

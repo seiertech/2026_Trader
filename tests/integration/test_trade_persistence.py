@@ -62,8 +62,9 @@ def test_golden_path_persists_to_duckdb(tmp_path) -> None:
     path = tmp_path / "run.duckdb"
     store = open_duckdb_store(str(path))
     result = run_golden_path(SAMPLE, decision_timeframe=Timeframe.H1, store=store)
-    # Every simulated trade was persisted.
-    assert store.count() == len(result.trades)
+    # Every simulated trade was persisted (the store also holds opportunity labels,
+    # so compare trade records specifically, not the total record count).
+    assert len(load_trades(store)) == len(result.trades)
     store.close()
 
     # Reopen and reconstruct — results survive the run (basis for later learning).
@@ -73,3 +74,28 @@ def test_golden_path_persists_to_duckdb(tmp_path) -> None:
     if loaded:
         assert loaded[0].instrument == "XAUUSD"
     store2.close()
+
+
+
+def test_rejected_opportunities_are_labelled_and_persisted(tmp_path) -> None:
+    """§50: rejected opportunities must be measured (forward-labelled) and stored.
+
+    At 15m on the sample, every opportunity is rejected by the affordability guard —
+    so we get rejected labels and zero trades, but the labels persist regardless.
+    """
+    from tc_database import load_opportunity_labels, open_duckdb_store
+
+    path = tmp_path / "labels.duckdb"
+    store = open_duckdb_store(str(path))
+    result = run_golden_path(
+        SAMPLE, decision_timeframe=Timeframe.M15, forward_bars=16, store=store
+    )
+    assert result.opportunities > 0
+    assert result.rejected == result.opportunities  # all rejected at 15m on £250
+    labels = load_opportunity_labels(store)
+    assert len(labels) == result.opportunities
+    rej = [x for x in labels if x["outcome"] == "REJECTED"]
+    assert len(rej) == result.rejected
+    # Each label carries forward directional returns keyed to the §49 horizons.
+    assert "5m" in rej[0]["label"]["directional_return"]
+    store.close()
