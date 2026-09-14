@@ -23,8 +23,15 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 
+from tc_convergence import DomainInput, score_convergence
 from tc_decision import CriticInputs, DecisionInputs, criticise, decide
-from tc_domain.enums import DecisionOutcome, OperatingMode, Timeframe
+from tc_domain.enums import (
+    ConvergenceDomain,
+    DecisionOutcome,
+    ImpactDirection,
+    OperatingMode,
+    Timeframe,
+)
 from tc_quant.regime import classify_regime
 from tc_quant.series import closes, highs, lows
 from tc_risk.gate import PortfolioState, ProposedTrade, evaluate
@@ -152,12 +159,17 @@ def run_golden_path(
             cell = {"instrument": instrument, "regime": regime.regime.value,
                     "direction": setup.direction, "strategy": strat.name}
 
+            # --- Convergence (§36-39): real evidence-domain score (no more ADX proxy) ---
+            conv = score_convergence(
+                _convergence_inputs(regime, setup.direction)
+            )
+
             # --- OODA middle: critic (§67) -> risk gate (§77) -> decision (§68-70) ---
             critic = criticise(
                 CriticInputs(
                     reward_risk=setup.reward_risk,
                     has_stop=True,
-                    convergence_score=regime.adx or 0.0,  # placeholder score pre-convergence engine
+                    convergence_score=conv.score,
                     min_reward_risk=_control_decimal(controls, "MIN_REWARD_RISK"),
                     regime_eligible=True,  # strategy was selected by regime already
                 )
@@ -179,7 +191,7 @@ def run_golden_path(
                 DecisionInputs(
                     opportunity_id=opp_id, evidence_pack_id="", instrument=instrument,
                     bias=setup.direction, regime=regime.regime,
-                    convergence_score=regime.adx or 0.0, decided_at=decided_at,
+                    convergence_score=conv.score, decided_at=decided_at,
                     critic=critic, gate_verdict=gate.verdict.value,
                     gate_reasons=gate.reasons,
                 ),
@@ -239,6 +251,45 @@ def run_golden_path(
         rejected=rejected,
         decisions=decisions,
     )
+
+
+def _convergence_inputs(regime, bias: str) -> list[DomainInput]:
+    """Build convergence domain inputs from the quant/regime read (§36, §150).
+
+    Only the price-derived domains are available in this slice; macro / news /
+    cross-market / historical domains attach as those engines feed in. Each domain
+    points in the strategy's proposed direction with a strength derived from the
+    regime's own signals — so the convergence score reflects how strongly the price
+    structure and momentum actually support the bias, not a raw indicator count.
+    """
+    direction = ImpactDirection.BULLISH if bias == "LONG" else ImpactDirection.BEARISH
+    inputs: list[DomainInput] = []
+
+    # MARKET_STRUCTURE — trend strength via ADX (0..100-ish), regime relevance high.
+    adx = regime.adx or 0.0
+    inputs.append(
+        DomainInput(
+            domain=ConvergenceDomain.MARKET_STRUCTURE,
+            strength=min(100.0, adx * 2.0),  # ADX ~25 => strength ~50 (research param)
+            direction=direction,
+            rationale=f"ADX {adx:.1f}, regime {regime.regime.value}",
+            regime_relevance=1.0,
+        )
+    )
+    # MOMENTUM_VOLATILITY — from the regime's volatility ratio if present.
+    vol_ratio = regime.vol_ratio
+    if vol_ratio is not None:
+        # Expansion in the trade direction is supportive; contraction less so.
+        strength = min(100.0, max(0.0, (vol_ratio - 0.5) * 80.0))
+        inputs.append(
+            DomainInput(
+                domain=ConvergenceDomain.MOMENTUM_VOLATILITY,
+                strength=strength,
+                direction=direction,
+                rationale=f"vol ratio {vol_ratio:.2f}",
+            )
+        )
+    return inputs
 
 
 def _risk_controls() -> dict[str, object]:

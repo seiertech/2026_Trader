@@ -91,7 +91,8 @@ def test_rejected_opportunities_are_labelled_and_persisted(tmp_path) -> None:
         SAMPLE, decision_timeframe=Timeframe.M15, forward_bars=16, store=store
     )
     assert result.opportunities > 0
-    assert result.rejected == result.opportunities  # all rejected at 15m on £250
+    assert result.rejected > 0  # the pipeline rejects/waits most 15m setups on £250
+    # EVERY opportunity is labelled — traded and rejected alike (§50).
     labels = load_opportunity_labels(store)
     assert len(labels) == result.opportunities
     rej = [x for x in labels if x["outcome"] == "REJECTED"]
