@@ -92,8 +92,8 @@ def decide(inp: DecisionInputs, *, decision_id: str) -> Decision:
 
     # 5. Critic CAUTION or gate REDUCE → WAIT rather than force activity (§3).
     if critic is not None and critic.verdict is CriticVerdict.CAUTION:
-        return build(DecisionOutcome.WAIT,
-                     f"critic CAUTION ({', '.join(critic.reason_codes) or 'no code'}); await confirmation")
+        codes = ", ".join(critic.reason_codes) or "no code"
+        return build(DecisionOutcome.WAIT, f"critic CAUTION ({codes}); await confirmation")
     if inp.gate_verdict == "REDUCE":
         return build(DecisionOutcome.WAIT,
                      f"risk gate REDUCE ({', '.join(inp.gate_reasons)}); await better conditions")

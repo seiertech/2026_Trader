@@ -10,6 +10,7 @@ does NOT invent market facts and it does NOT override risk (§55, §73). Every d
 is explainable in plain English AND detailed evidence (§101).
 """
 
+from tc_decision.critic import CriticInputs, criticise
 from tc_decision.engine import DecisionInputs, decide
 
-__all__ = ["DecisionInputs", "decide"]
+__all__ = ["DecisionInputs", "decide", "CriticInputs", "criticise"]
