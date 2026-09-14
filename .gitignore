@@ -1,0 +1,63 @@
+# ─────────────────────────────────────────────────────────────
+# Trading Command — .gitignore
+# Secrets MUST never be committed (TC-SPEC-001 §128, §129)
+# ─────────────────────────────────────────────────────────────
+
+# Secrets & credentials (Eightcap / MT5 / AI / provider keys)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+# Build artefacts. Scoped so they do NOT match docs/build/ (the spec lives there).
+/dist/
+**/dist/
+packages/*/build/
+apps/*/build/
+
+# Node / dashboard
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Data (historical stores can be large; do not commit)
+data/historical/*
+!data/historical/.gitkeep
+data/reference/*.parquet
+data/reference/*.csv
+*.duckdb
+*.sqlite
+*.sqlite3
+*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Logs
+logs/
+*.log
