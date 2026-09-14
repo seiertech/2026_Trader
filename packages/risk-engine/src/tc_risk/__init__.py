@@ -9,6 +9,14 @@ positive-edge gate and the §77 ceiling clamp are as un-overridable as the crypt
 prohibition and the Prime Directive.
 """
 
+from tc_risk.gate import (
+    GateResult,
+    GateVerdict,
+    PortfolioState,
+    ProposedTrade,
+    RiskReason,
+    evaluate,
+)
 from tc_risk.kelly import (
     BindingConstraint,
     EdgeStats,
@@ -25,4 +33,10 @@ __all__ = [
     "kelly_fraction",
     "size_risk_fraction",
     "wilson_lower_bound",
+    "GateResult",
+    "GateVerdict",
+    "PortfolioState",
+    "ProposedTrade",
+    "RiskReason",
+    "evaluate",
 ]
