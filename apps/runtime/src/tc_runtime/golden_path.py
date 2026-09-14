@@ -1,34 +1,38 @@
 """End-to-end XAUUSD golden path (§123), Shadow mode, on the replay provider.
 
-Flow (the spec's golden path, minus the not-yet-built intelligence/AI stages):
+Full pipeline (the spec's golden path, minus the not-yet-built intelligence/AI stages):
 
-    MT5 price (replay)  ->  quant + regime  ->  strategy setup (opportunity)
-      ->  risk-sized shadow trade  ->  simulated outcome  ->  metrics
+    MT5 price (replay) -> quant + regime -> eligible strategies (opportunity)
+      -> adversarial critic (§67) -> risk gate (§77) -> decision engine (§68-70)
+      -> risk-sized shadow trade -> simulated outcome -> forward labels -> metrics
 
-No-look-ahead is preserved throughout: at each decision point the strategy sees only
-bars already closed at the replay clock, and the trade is simulated over the bars that
-come AFTER the decision (which is what would have happened, revealed forward).
+Every opportunity now flows through the full OODA middle before execution — critic,
+risk gate and decision engine, not the old strategy->shadow shortcut. WAIT and REJECT
+are real outcomes; only LONG/SHORT reaches the simulator.
 
-Operating mode is asserted SHADOW (§79): simulated execution, no broker orders. AI and
-the news/convergence stages are intentionally absent here — this proves the mechanical
-pipeline before breadth (§161).
+No-look-ahead is preserved throughout: at each decision point strategies see only bars
+already closed at the replay clock, and the trade is simulated over the bars AFTER the
+decision. Operating mode is asserted SHADOW (§79): simulated execution, no broker
+orders. AI stages are intentionally absent — this proves the mechanical pipeline
+before breadth (§161).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 
-from tc_domain.enums import OperatingMode, Timeframe
+from tc_decision import CriticInputs, DecisionInputs, criticise, decide
+from tc_domain.enums import DecisionOutcome, OperatingMode, Timeframe
 from tc_quant.regime import classify_regime
 from tc_quant.series import closes, highs, lows
+from tc_risk.gate import PortfolioState, ProposedTrade, evaluate
 from tc_shadow.account import ShadowAccount
 from tc_shadow.costs import CostModel
 from tc_shadow.metrics import PerformanceMetrics, compute_metrics
 from tc_shadow.simulator import ShadowSimulator, SimulatedTrade, TradeIntent
-
-from tc_runtime.strategy import find_setup
+from tc_strategies import eligible_strategies
 
 
 @dataclass(frozen=True)
@@ -42,6 +46,11 @@ class GoldenPathResult:
     starting_balance: Decimal
     ending_balance: Decimal
     rejected: int = 0  # opportunities detected but not taken (§50) — still labelled
+    # Decision-outcome tally across the run (§69): how the pipeline resolved each
+    # opportunity before/at execution.
+    decisions: dict[str, int] = field(
+        default_factory=lambda: {"LONG": 0, "SHORT": 0, "WAIT": 0, "REJECT": 0}
+    )
 
 
 def run_golden_path(
@@ -97,63 +106,126 @@ def run_golden_path(
         pass
     tf_bars = provider.aggregated_bars(instrument, decision_timeframe)
 
+    controls = _risk_controls()
+
     tf_delta = interval_delta(decision_timeframe)
     trades: list[SimulatedTrade] = []
     opportunities = 0
     rejected = 0
+    decisions = {"LONG": 0, "SHORT": 0, "WAIT": 0, "REJECT": 0}
     cooldown_until = -1
+    seq = 0  # unique suffix so ids stay distinct when several strategies fire on one bar
 
-    # At decision index i, the strategy sees bars[:i+1] (all closed) and the trade is
+    # Portfolio/session state threaded through the run for the risk gate + critic.
+    consecutive_losses = 0
+
+    # At decision index i, strategies see bars[:i+1] (all closed) and the trade is
     # simulated over bars[i+1 : i+1+forward_bars] (the future, revealed forward).
     for i in range(len(tf_bars)):
         if i <= cooldown_until:
             continue
         window = tf_bars[: i + 1]
         regime = classify_regime(highs(window), lows(window), closes(window))
-        setup = find_setup(window, regime)
-        if setup is None:
-            continue
-        opportunities += 1
 
         future = tf_bars[i + 1 : i + 1 + forward_bars]
         if not future:
             break
         decided_at = tf_bars[i].open_time + tf_delta
-        # Forward-label EVERY opportunity — traded or not (§49/§50). The label uses the
-        # forward bars; it is keyed to the decision instant and never leaks back (§89).
-        label = label_forward_outcomes(
-            decided_at=decided_at,
-            reference_price=setup.entry_price,
-            bias=setup.direction,
-            future_bars=future,
-        )
-        cell = {"instrument": instrument, "regime": regime.regime.value,
-                "direction": setup.direction}
 
-        intent = TradeIntent(
-            instrument=instrument,
-            direction=setup.direction,
-            entry_price=setup.entry_price,
-            stop_price=setup.stop_price,
-            target_price=setup.target_price,
-            decided_at=decided_at,
-        )
-        trade = sim.simulate(intent, future)
-        if trade is not None:
+        took_trade_this_bar = False
+        # Every eligible strategy for the current regime gets to propose (§72).
+        for strat in eligible_strategies(regime.regime):
+            setup = strat.find_setup(window, regime)
+            if setup is None:
+                continue
+            opportunities += 1
+            seq += 1
+            opp_id = f"{instrument}:{decided_at.isoformat()}:{strat.name}"
+
+            # Forward-label EVERY opportunity — whatever the decision (§49/§50).
+            label = label_forward_outcomes(
+                decided_at=decided_at,
+                reference_price=setup.entry_price,
+                bias=setup.direction,
+                future_bars=future,
+            )
+            cell = {"instrument": instrument, "regime": regime.regime.value,
+                    "direction": setup.direction, "strategy": strat.name}
+
+            # --- OODA middle: critic (§67) -> risk gate (§77) -> decision (§68-70) ---
+            critic = criticise(
+                CriticInputs(
+                    reward_risk=setup.reward_risk,
+                    has_stop=True,
+                    convergence_score=regime.adx or 0.0,  # placeholder score pre-convergence engine
+                    min_reward_risk=_control_decimal(controls, "MIN_REWARD_RISK"),
+                    regime_eligible=True,  # strategy was selected by regime already
+                )
+            )
+            gate = evaluate(
+                ProposedTrade(
+                    instrument=instrument, direction=setup.direction,
+                    requested_risk_fraction=_control_decimal(controls, "MAX_RISK_PER_TRADE"),
+                    reward_risk=setup.reward_risk, has_stop=True,
+                ),
+                PortfolioState(
+                    open_positions=len(trades) if False else 0,  # single-position slice
+                    consecutive_losses=consecutive_losses,
+                    kill_switch=bool(controls.get("KILL_SWITCH")),
+                ),
+                controls,
+            )
+            decision = decide(
+                DecisionInputs(
+                    opportunity_id=opp_id, evidence_pack_id="", instrument=instrument,
+                    bias=setup.direction, regime=regime.regime,
+                    convergence_score=regime.adx or 0.0, decided_at=decided_at,
+                    critic=critic, gate_verdict=gate.verdict.value,
+                    gate_reasons=gate.reasons,
+                ),
+                decision_id=f"d:{opp_id}",
+            )
+            decisions[decision.outcome.value] += 1
+
+            if decision.outcome not in (DecisionOutcome.LONG, DecisionOutcome.SHORT):
+                # WAIT/REJECT: not traded, but still measured (§50).
+                rejected += 1
+                if persist_label is not None:
+                    persist_label(store, instrument=instrument, outcome="REJECTED",
+                                  reject_reason=decision.outcome.value, label=label, cell=cell)
+                continue
+
+            # Decision says trade → simulate it (§79 shadow).
+            intent = TradeIntent(
+                instrument=instrument, direction=setup.direction,
+                entry_price=setup.entry_price, stop_price=setup.stop_price,
+                target_price=setup.target_price, decided_at=decided_at,
+                strategy=strat.name, regime=regime.regime.value,
+            )
+            trade = sim.simulate(intent, future)
+            if trade is None:
+                # Sizing/affordability rejected post-decision (§85) — still measured.
+                rejected += 1
+                if persist_label is not None:
+                    persist_label(store, instrument=instrument, outcome="REJECTED",
+                                  reject_reason="not_sized_or_afforded", label=label, cell=cell)
+                continue
+
             trades.append(trade)
+            if trade.net_pnl < 0:
+                consecutive_losses += 1
+            else:
+                consecutive_losses = 0
             if persist is not None:
                 persist(store, trade)
             if persist_label is not None:
                 persist_label(store, instrument=instrument, outcome="TRADED",
                               reject_reason="", label=label, cell=cell)
+            took_trade_this_bar = True
+            break  # one position at a time in this slice
+
+        if took_trade_this_bar:
             cooldown_until = i + reentry_cooldown_bars
-        else:
-            # Opportunity detected but not taken (unaffordable / no positive edge, §85/§77a).
-            # §50: measure what WOULD have happened — persist the rejection + its label.
-            rejected += 1
-            if persist_label is not None:
-                persist_label(store, instrument=instrument, outcome="REJECTED",
-                              reject_reason="not_sized_or_afforded", label=label, cell=cell)
 
     return GoldenPathResult(
         instrument=instrument,
@@ -165,7 +237,43 @@ def run_golden_path(
         starting_balance=starting_balance,
         ending_balance=account.balance,
         rejected=rejected,
+        decisions=decisions,
     )
+
+
+def _risk_controls() -> dict[str, object]:
+    """Load the §77 risk controls from config, falling back to safe defaults.
+
+    Kept local + defensive so the runtime never hard-fails if config paths shift; the
+    values only tune the deterministic gate/critic, never bypass them.
+    """
+    try:
+        import sys
+
+        cfg_src = Path(__file__).resolve().parents[4] / "packages" / "config" / "src"
+        if str(cfg_src) not in sys.path:
+            sys.path.insert(0, str(cfg_src))
+        from tc_config import load_config
+
+        cfg_dir = Path(__file__).resolve().parents[4] / "config"
+        return dict(load_config(cfg_dir).risk.risk_controls)
+    except Exception:
+        # Defensive defaults mirror config/risk.yaml (§76/§77).
+        return {
+            "MAX_RISK_PER_TRADE": 0.01, "MIN_REWARD_RISK": 1.5, "MAX_OPEN_RISK": 0.04,
+            "MAX_INSTRUMENT_EXPOSURE": 0.02, "MAX_POSITIONS": 3,
+            "MAX_CONSECUTIVE_LOSSES": 5, "MAX_DAILY_LOSS": 0.03,
+            "MANDATORY_STOP": True, "STALE_DATA_BLOCK": True, "KILL_SWITCH": False,
+            "MAX_SPREAD": None,
+        }
+
+
+def _control_decimal(controls: dict[str, object], key: str) -> Decimal:
+    v = controls.get(key)
+    try:
+        return Decimal(str(v)) if v is not None and not isinstance(v, bool) else Decimal(0)
+    except Exception:
+        return Decimal(0)
 
 
 def format_report(result: GoldenPathResult) -> str:
@@ -178,6 +286,9 @@ def format_report(result: GoldenPathResult) -> str:
         f"  instrument        : {result.instrument}",
         f"  decision bars     : {result.bars_processed}",
         f"  opportunities     : {result.opportunities}",
+        f"  decisions         : LONG {result.decisions['LONG']}  SHORT "
+        f"{result.decisions['SHORT']}  WAIT {result.decisions['WAIT']}  "
+        f"REJECT {result.decisions['REJECT']}   (§69)",
         f"  trades simulated  : {m.trades}",
         f"  rejected (labelled): {result.rejected}   (measured anyway, §50)",
         "",

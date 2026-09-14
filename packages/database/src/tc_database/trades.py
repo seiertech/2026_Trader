@@ -41,6 +41,8 @@ def trade_to_payload(trade: SimulatedTrade) -> dict[str, Any]:
         "exit_reason": trade.exit_reason,
         "evidence_pack_id": trade.evidence_pack_id,
         "sizing_audit": trade.sizing_audit,
+        "strategy": trade.strategy,
+        "regime": trade.regime,
     }
     for f in _DECIMAL_FIELDS:
         payload[f] = str(getattr(trade, f))
@@ -59,6 +61,8 @@ def payload_to_trade(payload: dict[str, Any]) -> SimulatedTrade:
         "exit_reason": payload["exit_reason"],
         "evidence_pack_id": payload.get("evidence_pack_id", ""),
         "sizing_audit": payload.get("sizing_audit"),
+        "strategy": payload.get("strategy", ""),
+        "regime": payload.get("regime", ""),
     }
     for f in _DECIMAL_FIELDS:
         kwargs[f] = Decimal(payload[f])

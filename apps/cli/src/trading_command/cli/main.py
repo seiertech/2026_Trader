@@ -65,8 +65,9 @@ def cmd_markets(_: argparse.Namespace) -> int:
 def cmd_golden_path(args: argparse.Namespace) -> int:
     # Lazy import so the CLI's read-only commands don't pull the runtime/engines.
     for pkg in ("quant-engine", "market-data", "shadow-engine", "risk-engine",
-                "database", "learning-engine"):
+                "database", "learning-engine", "decision-engine", "config"):
         sys.path.insert(0, str(_ROOT / "packages" / pkg / "src"))
+    sys.path.insert(0, str(_ROOT / "strategies" / "src"))
     sys.path.insert(0, str(_ROOT / "apps" / "runtime" / "src"))
     from tc_runtime.golden_path import format_report, run_golden_path
 

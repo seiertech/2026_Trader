@@ -43,7 +43,11 @@ def persist_opportunity_label(
     cell: dict[str, str] | None = None,  # attribution dims known at decision time
 ) -> ExperienceRecord:
     """Append a forward-labelled opportunity (traded or rejected) to the store (§50)."""
-    rid = f"opp:{instrument}:{label.decided_at.isoformat()}"
+    # Include the strategy in the id: several strategies can fire on the same bar for
+    # the same instrument, and each is a distinct opportunity (append-only, §90).
+    strat = (cell or {}).get("strategy", "")
+    suffix = f":{strat}" if strat else ""
+    rid = f"opp:{instrument}:{label.decided_at.isoformat()}{suffix}"
     payload: dict[str, Any] = {
         "instrument": instrument,
         "outcome": outcome,

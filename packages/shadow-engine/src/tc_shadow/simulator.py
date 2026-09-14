@@ -42,6 +42,8 @@ class TradeIntent:
     target_price: Decimal
     decided_at: datetime
     evidence_pack_id: str = ""
+    strategy: str = ""
+    regime: str = ""
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,10 @@ class SimulatedTrade:
     # §77a sizing audit (TC-CR-001): recorded so we can later check whether the edge
     # estimate used for sizing was borne out. Empty for legacy fixed-fraction calls.
     sizing_audit: dict[str, object] | None = None
+    # Attribution dimensions known at decision time (§91): which strategy produced the
+    # setup and the regime it fired in. Enable `tc attribution --by strategy,regime`.
+    strategy: str = ""
+    regime: str = ""
 
 
 class ShadowSimulator:
@@ -211,4 +217,6 @@ class ShadowSimulator:
             exit_reason=exit_reason,
             evidence_pack_id=intent.evidence_pack_id,
             sizing_audit=sizing.audit_fields(),
+            strategy=intent.strategy,
+            regime=intent.regime,
         )
