@@ -57,7 +57,9 @@ pythonpath = [
     "packages/shadow-engine/src",
     "packages/risk-engine/src",
     "packages/learning-engine/src",
+    "packages/decision-engine/src",
     "apps/runtime/src",
+    "strategies/src",
 ]
 addopts = "-q"
 
