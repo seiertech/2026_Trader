@@ -46,6 +46,8 @@ data/historical/*
 !data/historical/.gitkeep
 data/reference/*.parquet
 data/reference/*.csv
+# ...but keep the small committed sample datasets the golden-path demo/tests use:
+!data/reference/*_sample.csv
 *.duckdb
 *.sqlite
 *.sqlite3

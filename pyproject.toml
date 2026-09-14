@@ -47,7 +47,15 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["packages/domain/src", "packages/config/src", "packages/database/src", "packages/observability/src"]
+pythonpath = [
+    "packages/domain/src",
+    "packages/config/src",
+    "packages/database/src",
+    "packages/observability/src",
+    "packages/market-data/src",
+    "packages/quant-engine/src",
+    "packages/shadow-engine/src",
+]
 addopts = "-q"
 
 [tool.mypy]
