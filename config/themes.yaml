@@ -1,0 +1,35 @@
+# Trading Command — theme catalogue seed (§20, §147).
+# Config-driven. These are the durable themes the engine tracks; strength + lifecycle
+# are computed from observed evidence, not set here. ids that also appear as THEME
+# entities in relationships.yaml resolve to instruments via the graph (§21, §22).
+
+themes:
+  # §20 core themes
+  - {id: AI, name: Artificial Intelligence}
+  - {id: SEMICONDUCTORS, name: Semiconductors}
+  - {id: ENERGY, name: Energy}
+  - {id: BANKING, name: Banking}
+  - {id: DEFENCE, name: Defence}
+  - {id: INFLATION, name: Inflation}
+  - {id: INTEREST_RATES, name: Interest rates}
+  - {id: USD_STRENGTH, name: US dollar strength}
+  - {id: GBP_STRENGTH, name: Pound strength}
+  - {id: RISK_ON, name: Risk-on}
+  - {id: RISK_OFF, name: Risk-off}
+  - {id: CHINA, name: China}
+  - {id: MIDDLE_EAST, name: Middle East}
+  - {id: MIDDLE_EAST_ESCALATION, name: Middle East escalation}
+  - {id: UK_ECONOMY, name: UK economy}
+  - {id: US_ECONOMY, name: US economy}
+  - {id: EUROPEAN_ECONOMY, name: European economy}
+  # §147 lifecycle examples
+  - {id: AI_INFRASTRUCTURE_EXPANSION, name: AI infrastructure expansion}
+  - {id: SEMICONDUCTOR_SUPPLY_CONSTRAINT, name: Semiconductor supply constraint}
+  - {id: EV_DEMAND_ACCELERATION, name: EV demand acceleration}
+  - {id: ENERGY_TRANSITION, name: Energy transition}
+  - {id: NUCLEAR_RENAISSANCE, name: Nuclear renaissance}
+  - {id: DRUG_PRICING_PRESSURE, name: Drug pricing pressure}
+  - {id: GLP1_ADOPTION, name: GLP-1 adoption}
+  - {id: BANKING_STRESS, name: Banking stress}
+  - {id: CHINA_SLOWDOWN, name: China slowdown}
+  - {id: EUROPEAN_ENERGY_SHOCK, name: European energy shock}

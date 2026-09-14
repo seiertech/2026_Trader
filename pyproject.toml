@@ -61,6 +61,7 @@ pythonpath = [
     "packages/convergence-engine/src",
     "packages/evidence-engine/src",
     "packages/relationship-graph/src",
+    "packages/theme-engine/src",
     "apps/runtime/src",
     "strategies/src",
 ]
