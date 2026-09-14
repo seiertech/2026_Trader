@@ -11,6 +11,10 @@ permission to scaffold dozens of incomplete modules).
 | 1 | MT5 live read (needs Windows host — TC-ADR-032) | 🟡 contracts + replay provider done; live Mt5 adapter pending Windows host |
 | 2 | Historical market store: canonical bars, aggregation, replay | 🟡 replay + aggregation + DuckDB persistence done; full history pending |
 | 3 | Quant: regime, trend, momentum, structure, volatility | 🟡 indicators + regime classifier done; specialist depth pending |
+| 15 | Decision Engine (§68-70): LONG/SHORT/WAIT/REJECT, WAIT first-class | ✅ deterministic engine done |
+| 16 | Strategies (§71-72): trend/momentum/mean-reversion/vol-expansion + registry | 🟡 4 research families + regime eligibility done; more pending |
+| — | Risk Engine gate (§77): all controls enforced in code | ✅ deterministic gate done |
+| — | Adversarial Critic (§67): deterministic VETO/CAUTION/NO_OBJECTION | ✅ done (AI critic Phase 9) |
 | 10 | Shadow: sizing, cost model, simulated execution, metrics | 🟡 simulator + metrics done; full portfolio/session modelling pending |
 | 4 | News intelligence | ⏳ |
 | 5 | Entity & relationship graph | ⏳ |
@@ -132,3 +136,36 @@ refuses to treat one result as evidence of edge (§53).
 **Tests:** 107 total (+13: labelling per-horizon + bias orientation + missing→None,
 attribution grouping/expectancy/sorting, WEAK vs PROVISIONAL, rejected-opportunity
 persistence). ruff clean.
+
+
+## Decision / Risk / Challenge middle — full OODA pipeline (§67, §68-70, §77)
+
+The pipeline no longer shortcuts strategy→shadow. Every opportunity flows through the
+full middle before execution:
+
+    eligible strategies (§72) → adversarial critic (§67) → risk gate (§77)
+      → decision engine (§68-70) → only LONG/SHORT → shadow simulator
+
+- `packages/risk-engine/tc_risk/gate.py` — deterministic §77 gate: APPROVE / REDUCE
+  (cap to headroom) / REJECT (fail closed) with reason codes. Enforces KILL_SWITCH,
+  MANDATORY_STOP, STALE_DATA_BLOCK, MIN_REWARD_RISK, MAX_SPREAD, MAX_POSITIONS,
+  MAX_CONSECUTIVE_LOSSES, MAX_DAILY_LOSS, MAX_OPEN_RISK, MAX_INSTRUMENT_EXPOSURE.
+  Never raises risk.
+- `packages/decision-engine/tc_decision/engine.py` — Decision Engine (§68-70):
+  precedence VETO→REJECT, gate REJECT→REJECT, expired→REJECT, unclear→WAIT,
+  CAUTION/REDUCE→WAIT, else LONG/SHORT. WAIT first-class (§70). Immutable Decision
+  with plain-English + detailed explainability (§101).
+- `packages/decision-engine/tc_decision/critic.py` — deterministic Adversarial Critic
+  (§67): VETO (stale/blackout/no-stop/reward-risk) / CAUTION (wide spread, low
+  convergence, loss streak, ineligible regime) / NO_OBJECTION. AI critic adds on top
+  in Phase 9, never removes these.
+- `strategies/tc_strategies` — 4 regime-eligible research families (§71-72) +
+  registry; no strategy presumed profitable (TC-ADR-020).
+- Runtime threads portfolio/session state through the gate+critic, tallies the
+  decision outcomes (§69), and stamps strategy+regime on trades for attribution (§91).
+
+**Demonstrated at 15m:** 133 opportunities across 4 strategies → 10 LONG/SHORT, 123
+WAIT; all forward-labelled by strategy; every one measured (§50).
+
+**Tests:** 160 total (risk gate 14, decision 11, critic 11, strategies 17, + prior).
+ruff clean.
