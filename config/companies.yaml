@@ -1,0 +1,35 @@
+# Trading Command — market-leader baskets (§19, §142, §148). Config-driven (§19):
+# add/remove companies without code changes. Each basket links to a sector and,
+# through the graph, to affected indices. A correlated basket move counts as ONE
+# derived factor, never N signals (§148).
+
+baskets:
+  - id: TECH_MEGA_CAP
+    name: Technology / Mega Cap
+    sector: TECHNOLOGY
+    members: [NVIDIA, Microsoft, Apple, Amazon, Alphabet, Meta]
+  - id: SEMICONDUCTOR
+    name: Semiconductor
+    sector: SEMICONDUCTORS
+    members: [NVIDIA, AMD, Broadcom, TSMC, ASML]
+  - id: US_BANKING
+    name: US Banking
+    sector: BANKING
+    members: [JPMorgan, Bank of America, Goldman Sachs]
+  - id: UK_BANKING
+    name: UK Banking
+    sector: BANKING
+    members: [HSBC, Barclays, Lloyds, NatWest]
+  - id: ENERGY
+    name: Energy
+    sector: ENERGY
+    members: [ExxonMobil, Chevron, Shell, BP]
+  - id: DEFENCE
+    name: Defence
+    sector: DEFENCE
+    members: [Lockheed Martin, RTX, BAE Systems, Rheinmetall]
+  # §142 healthcare basket
+  - id: HEALTHCARE
+    name: Healthcare & Life Sciences
+    sector: HEALTHCARE
+    members: [Eli Lilly, Novo Nordisk, Johnson & Johnson, UnitedHealth Group, AstraZeneca, Roche, Novartis, Pfizer, Merck]

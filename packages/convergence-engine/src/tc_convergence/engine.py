@@ -94,26 +94,31 @@ def score_convergence(
         else:
             singles.append(d)
 
-    effective: list[tuple[DomainInput, float]] = [(d, _adjust(d)) for d in singles]
+    # effective entries: (input, adjusted_strength, is_independent). A collapsed
+    # group contributes exactly ONE independent entry (its representative); the other
+    # members are retained for explainability but flagged non-independent so they add
+    # NOTHING to breadth or the directional tally (§148, §39 — no double-counting).
+    effective: list[tuple[DomainInput, float, bool]] = [(d, _adjust(d), True) for d in singles]
     collapsed: list[str] = []
     for name, members in groups.items():
         collapsed.append(name)
         members_sorted = sorted(members, key=lambda m: _adjust(m), reverse=True)
-        # Representative counts fully; the rest are heavily discounted (correlated).
         rep = members_sorted[0]
-        effective.append((rep, _adjust(rep)))
+        effective.append((rep, _adjust(rep), True))  # the one independent contribution
         for extra in members_sorted[1:]:
-            effective.append((extra, _adjust(extra) * (1.0 - independence_floor) * 0.25))
+            effective.append((extra, 0.0, False))     # correlated: no extra weight
 
-    # --- Step 2: tally directional agreement ---
-    bull = sum(s for d, s in effective if d.direction is ImpactDirection.BULLISH)
-    bear = sum(s for d, s in effective if d.direction is ImpactDirection.BEARISH)
+    independent = [(d, s) for d, s, ind in effective if ind]
+
+    # --- Step 2: tally directional agreement (independent contributions only) ---
+    bull = sum(s for d, s in independent if d.direction is ImpactDirection.BULLISH)
+    bear = sum(s for d, s in independent if d.direction is ImpactDirection.BEARISH)
     agree_side = ImpactDirection.BULLISH if bull >= bear else ImpactDirection.BEARISH
     winning = max(bull, bear)
     losing = min(bull, bear)
-    agreeing = sum(1 for d, _ in effective if d.direction is agree_side)
+    agreeing = sum(1 for d, _ in independent if d.direction is agree_side)
     conflicting = sum(
-        1 for d, _ in effective
+        1 for d, _ in independent
         if d.direction in (ImpactDirection.BULLISH, ImpactDirection.BEARISH)
         and d.direction is not agree_side
     )
@@ -130,21 +135,22 @@ def score_convergence(
     dominance = winning / total
     # Breadth: independent agreeing domains, saturating (diminishing returns).
     breadth = min(1.0, agreeing / 4.0)
-    # Mean adjusted strength of the agreeing side (0..100).
-    agree_strengths = [s for d, s in effective if d.direction is agree_side]
+    # Mean adjusted strength of the agreeing side (0..100), independent entries only.
+    agree_strengths = [s for d, s in independent if d.direction is agree_side]
     mean_strength = sum(agree_strengths) / len(agree_strengths) if agree_strengths else 0.0
     # Blend: strength scaled by dominance and breadth. Conflicting evidence lowers it
     # via dominance (< 1 when the other side has weight).
     raw = mean_strength * (0.5 + 0.5 * dominance) * (0.5 + 0.5 * breadth)
     score = _clamp(raw, 0.0, 100.0)
 
+    # Retain ALL entries (independent + collapsed) for explainability (§38).
     contributing = tuple(
         DomainEvidence(
             domain=d.domain,
             strength=_clamp(s, 0.0, 100.0),
             rationale=d.rationale or f"{d.domain.value} {d.direction.value}",
         )
-        for d, s in effective
+        for d, s, _ind in effective
     )
     detail = (
         f"agree={agreeing} conflict={conflicting} dominance={dominance:.2f} "
