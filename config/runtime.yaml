@@ -1,0 +1,21 @@
+# Trading Command — runtime configuration (TC-SPEC-001 Part XVIII, §108).
+# The system defaults to SHADOW and fails closed (§79, §104, TC-ADR-015).
+
+mode: SHADOW            # OFF | SHADOW | PAPER | LIVE_LIMITED | LIVE_AUTO
+
+# Reference unit for expressing risk, R and expectancy — NOT a capital base to
+# compound and NOT a return objective (§74, TC-ADR-016).
+reference_unit_gbp: 250
+
+# There is NO capital return target in V1 (§0 Prime Directive, §75, TC-ADR-017).
+# This key exists only to make the absence explicit and machine-checkable; it MUST
+# remain null. Setting it is a PolicyViolation (RETURN_TARGET_FORBIDDEN).
+return_target: null
+
+# Market-data / execution provider for SHADOW. Real MT5 needs a Windows host
+# (TC-ADR-032); Shadow uses the deterministic replay/synthetic provider.
+market_data_provider: replay
+execution_provider: shadow_simulator
+
+# Golden path is built first; breadth follows (§123, §161).
+golden_path_instrument: XAUUSD

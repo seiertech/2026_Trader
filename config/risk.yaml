@@ -1,0 +1,27 @@
+# Trading Command — risk controls (TC-SPEC-001 §77).
+# The Risk Engine controls capital deterministically. AI SHALL NOT override these
+# limits (§73, TC-ADR-012). All 17 required controls from §77 are present.
+#
+# Values below are INITIAL RESEARCH PARAMETERS (§76), expressed against the £250
+# reference unit. They remain research parameters until validated against real
+# Eightcap contract sizes and instrument minimum positions. They are NOT tuned to
+# hit any return target — none exists (§0, §75).
+
+risk_controls:
+  MAX_RISK_PER_TRADE:        0.01     # 1% of reference unit (§76) => £2.50
+  MAX_DAILY_LOSS:            0.03     # fraction of reference unit
+  MAX_WEEKLY_LOSS:           0.06
+  MAX_DRAWDOWN:              0.15
+  MAX_OPEN_RISK:             0.04     # summed risk-at-stop across open positions
+  MAX_POSITIONS:            3         # count
+  MAX_LEVERAGE:            10         # ratio; instrument-specific caps may be lower
+  MAX_CORRELATED_EXPOSURE:   0.05     # summed risk within one correlation cluster
+  MAX_INSTRUMENT_EXPOSURE:   0.02     # risk on a single instrument
+  MIN_REWARD_RISK:           1.5      # minimum reward:risk to consider a trade
+  MAX_SPREAD:               null      # per-instrument; discovered at integration
+  MAX_SLIPPAGE:             null      # per-instrument; modeled in Shadow (§84)
+  MAX_CONSECUTIVE_LOSSES:    5        # trips a cool-off
+  MANDATORY_STOP:           true      # every position MUST carry a stop
+  EVENT_BLACKOUT:           true      # block new entries around high-impact events
+  STALE_DATA_BLOCK:         true      # block trading on stale market data (§104)
+  KILL_SWITCH:              false     # operator hard-off; true = all trading halted

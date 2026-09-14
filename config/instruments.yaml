@@ -1,0 +1,46 @@
+# Trading Command — canonical instrument universe (§5, §11, TC-ADR-007).
+# Eight primary V1 instruments. Canonical IDs are decoupled from broker symbols;
+# broker_symbol / contract_size / tick_size / etc. are discovered at MT5 integration
+# (Phase 1) and filled in then. Expanding this set is a spec change requiring an ADR.
+#
+# permission: INTELLIGENCE_ONLY | SHADOW_TRADABLE | LIVE_TRADABLE | PROHIBITED
+# None are LIVE_TRADABLE — live requires an explicit approved build unit (Part XXXI).
+
+instruments:
+  # Foreign Exchange
+  - canonical_id: GBPUSD
+    display_name: Pound / US Dollar
+    asset_class: FOREX
+    permission: SHADOW_TRADABLE
+  - canonical_id: EURUSD
+    display_name: Euro / US Dollar
+    asset_class: FOREX
+    permission: SHADOW_TRADABLE
+  - canonical_id: USDJPY
+    display_name: US Dollar / Japanese Yen
+    asset_class: FOREX
+    permission: SHADOW_TRADABLE
+
+  # Equity Indices
+  - canonical_id: NAS100
+    display_name: US Tech 100 Index
+    asset_class: INDEX
+    permission: SHADOW_TRADABLE
+  - canonical_id: US500
+    display_name: US 500 Index
+    asset_class: INDEX
+    permission: SHADOW_TRADABLE
+  - canonical_id: UK100
+    display_name: UK 100 Index
+    asset_class: INDEX
+    permission: SHADOW_TRADABLE
+
+  # Commodities
+  - canonical_id: XAUUSD
+    display_name: Gold / US Dollar
+    asset_class: COMMODITY
+    permission: SHADOW_TRADABLE   # golden-path instrument (§123)
+  - canonical_id: USOIL
+    display_name: US Crude Oil
+    asset_class: COMMODITY
+    permission: SHADOW_TRADABLE

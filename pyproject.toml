@@ -1,0 +1,56 @@
+[project]
+name = "trading-command"
+version = "0.1.0"
+description = "Trading Command — evidence-driven market-intelligence & edge-validation platform (TC-SPEC-001 v1.3)"
+requires-python = ">=3.12"
+readme = "README.md"
+
+# Runtime deps kept deliberately lean for Phase 0. Engines add their own as we
+# build vertically (TC-SPEC-001 §107). No paid data deps (TC-ADR-009).
+dependencies = [
+    "pydantic>=2.7",      # typed domain model / config validation
+    "pyyaml>=6.0",        # config files
+    "python-dateutil>=2.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+# Phase 3+ quant. Declared here so the intent is visible; not installed until needed.
+quant = ["numpy>=1.26", "pandas>=2.2"]
+# Phase 0.3 storage.
+store = ["duckdb>=1.0"]
+
+[project.scripts]
+tc = "trading_command.cli.main:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["packages", "apps"]
+
+# ── The src layout maps spec package names (hyphenated dirs) to python modules ──
+# Each spec package lives under packages/<name>/src/<module>. See docs/decisions.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["packages/domain/src", "packages/config/src", "packages/database/src", "packages/observability/src"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "packages/domain/src:packages/config/src"
