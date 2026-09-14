@@ -55,6 +55,7 @@ pythonpath = [
     "packages/market-data/src",
     "packages/quant-engine/src",
     "packages/shadow-engine/src",
+    "apps/runtime/src",
 ]
 addopts = "-q"
 

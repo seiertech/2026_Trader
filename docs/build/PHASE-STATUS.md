@@ -8,9 +8,10 @@ permission to scaffold dozens of incomplete modules).
 | Phase | Scope | Status |
 |------:|-------|--------|
 | 0 | Foundation: domain model, config, database, logging, tests, dashboard shell | ✅ **done** |
-| 1 | MT5 live read (needs Windows host — TC-ADR-032) | ⏳ next |
-| 2 | Historical market store: canonical bars, aggregation, indicators, replay | ⏳ |
-| 3 | Quant: regime, trend, momentum, structure, volatility | ⏳ |
+| 1 | MT5 live read (needs Windows host — TC-ADR-032) | 🟡 contracts + replay provider done; live Mt5 adapter pending Windows host |
+| 2 | Historical market store: canonical bars, aggregation, replay | 🟡 replay + aggregation done; DuckDB persistence + full history pending |
+| 3 | Quant: regime, trend, momentum, structure, volatility | 🟡 indicators + regime classifier done; specialist depth pending |
+| 10 | Shadow: sizing, cost model, simulated execution, metrics | 🟡 simulator + metrics done; full portfolio/session modelling pending |
 | 4 | News intelligence | ⏳ |
 | 5 | Entity & relationship graph | ⏳ |
 | 6 | Market leaders | ⏳ |
@@ -47,3 +48,29 @@ permission to scaffold dozens of incomplete modules).
 **Tests:** 33 unit tests, all passing — crypto prohibition, no-return-target,
 config load + fail-closed, 17 risk controls, 8 instruments none-live, domain
 immutability, naive-datetime rejection.
+
+## XAUUSD Shadow golden-path slice — what was built (vertical, §123)
+
+The first end-to-end vertical, running on the replay provider (no Windows/MT5 needed):
+
+- `packages/market-data` (`tc_market_data`) — `MarketDataProvider`/`ExecutionProvider`
+  contracts (§96); `ReplayMarketDataProvider` with strict no-look-ahead (§126);
+  calendar-aligned timeframe aggregation (§35).
+- `packages/quant-engine` (`tc_quant`) — deterministic indicators (SMA/EMA/RSI/MACD/
+  ATR/ADX/ROC/Bollinger, §33) and a regime classifier (§34); pure math, no AI (§55).
+- `packages/shadow-engine` (`tc_shadow`) — cost model, risk-based sizing, virtual £250
+  account with a §85 affordability guard, trade simulator, and performance metrics
+  (win rate, profit factor, expectancy in cash **and R**, MFE/MAE, drawdown; §84–§87).
+- `apps/runtime` (`tc_runtime`) — orchestrates the golden path end to end: replay →
+  aggregate → regime → strategy setup → risk-sized shadow trade → outcome → metrics.
+- `data/reference/XAUUSD_1m_sample.csv` — deterministic synthetic sample (flagged
+  synthetic, not real data). Real history arrives via the Windows Mt5 provider later.
+- CLI: `tc golden-path` runs the whole pipeline and prints a report.
+
+**Honest results on the sample:** the mean-reverting sample reads as RANGE, so the
+trend/breakout demo strategy finds few setups; at 1h the one trade lost (-1R) and the
+report flags non-positive expectancy as a *valid* outcome (§0/§130). At 15m the §85
+affordability guard correctly rejects every setup — a £250 account cannot hold the
+position tight intraday stops demand. No edge is claimed (TC-ADR-020).
+
+**Tests:** 68 total (64 unit + 4 golden-path integration), all passing; ruff clean.

@@ -62,6 +62,22 @@ def cmd_markets(_: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_golden_path(_: argparse.Namespace) -> int:
+    # Lazy import so the CLI's read-only commands don't pull the runtime/engines.
+    sys.path.insert(0, str(_ROOT / "packages" / "quant-engine" / "src"))
+    sys.path.insert(0, str(_ROOT / "packages" / "market-data" / "src"))
+    sys.path.insert(0, str(_ROOT / "packages" / "shadow-engine" / "src"))
+    sys.path.insert(0, str(_ROOT / "apps" / "runtime" / "src"))
+    from tc_runtime.golden_path import format_report, run_golden_path
+
+    sample = _ROOT / "data" / "reference" / "XAUUSD_1m_sample.csv"
+    if not sample.exists():
+        print(f"sample data not found: {sample}", file=sys.stderr)
+        return 2
+    print(format_report(run_golden_path(sample)))
+    return 0
+
+
 def _stub(name: str) -> int:
     print(f"'{name}' is not implemented in Phase 0. It will route through "
           f"deterministic policy controls when built (never bypassing them).")
@@ -80,6 +96,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("markets", help="canonical instruments & permissions").set_defaults(
         fn=cmd_markets
     )
+    sub.add_parser(
+        "golden-path", help="run the XAUUSD Shadow golden-path demo on sample data"
+    ).set_defaults(fn=cmd_golden_path)
     stubbed = (
         "opportunities", "positions", "performance", "risk",
         "events", "pause", "resume-shadow",
