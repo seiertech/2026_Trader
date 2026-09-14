@@ -32,6 +32,7 @@ from tc_domain.enums import (
     OperatingMode,
     Timeframe,
 )
+from tc_evidence import build_evidence_pack
 from tc_quant.regime import classify_regime
 from tc_quant.series import closes, highs, lows
 from tc_risk.gate import PortfolioState, ProposedTrade, evaluate
@@ -83,7 +84,9 @@ def run_golden_path(
 
     persist = None
     persist_label = None
+    persist_pack = None
     if store is not None:
+        from tc_database.evidence_packs import persist_evidence_pack as persist_pack
         from tc_database.labels import persist_opportunity_label as persist_label
         from tc_database.trades import persist_trade as persist
 
@@ -164,6 +167,22 @@ def run_golden_path(
                 _convergence_inputs(regime, setup.direction)
             )
 
+            # --- Evidence Pack (§43): immutable snapshot at the decision instant ---
+            pack = build_evidence_pack(
+                instrument=instrument,
+                decided_at=decided_at,
+                regime=regime.regime,
+                strategy=strat.name,
+                direction=setup.direction,
+                convergence_score=conv.score,
+                domain_evidence=conv.contributing,
+                convergence_detail=conv.detail,
+                extra_context={"rationale": setup.rationale,
+                               "reward_risk": str(setup.reward_risk)},
+            )
+            if persist_pack is not None:
+                persist_pack(store, pack)
+
             # --- OODA middle: critic (§67) -> risk gate (§77) -> decision (§68-70) ---
             critic = criticise(
                 CriticInputs(
@@ -189,7 +208,7 @@ def run_golden_path(
             )
             decision = decide(
                 DecisionInputs(
-                    opportunity_id=opp_id, evidence_pack_id="", instrument=instrument,
+                    opportunity_id=opp_id, evidence_pack_id=pack.pack_id, instrument=instrument,
                     bias=setup.direction, regime=regime.regime,
                     convergence_score=conv.score, decided_at=decided_at,
                     critic=critic, gate_verdict=gate.verdict.value,
@@ -213,6 +232,7 @@ def run_golden_path(
                 entry_price=setup.entry_price, stop_price=setup.stop_price,
                 target_price=setup.target_price, decided_at=decided_at,
                 strategy=strat.name, regime=regime.regime.value,
+                evidence_pack_id=pack.pack_id,
             )
             trade = sim.simulate(intent, future)
             if trade is None:

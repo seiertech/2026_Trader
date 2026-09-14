@@ -59,6 +59,7 @@ pythonpath = [
     "packages/learning-engine/src",
     "packages/decision-engine/src",
     "packages/convergence-engine/src",
+    "packages/evidence-engine/src",
     "apps/runtime/src",
     "strategies/src",
 ]

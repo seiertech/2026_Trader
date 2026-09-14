@@ -12,6 +12,10 @@ Immutability (§90, TC-ADR-018) is honoured: stored evidence packs / decisions a
 written once and read back, never updated.
 """
 
+from tc_database.evidence_packs import (
+    load_evidence_packs,
+    persist_evidence_pack,
+)
 from tc_database.experience import (
     ExperienceRecord,
     ExperienceStore,
@@ -40,6 +44,8 @@ __all__ = [
     "trade_to_payload",
     "load_opportunity_labels",
     "persist_opportunity_label",
+    "load_evidence_packs",
+    "persist_evidence_pack",
 ]
 
 

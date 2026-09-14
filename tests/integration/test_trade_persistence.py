@@ -100,3 +100,24 @@ def test_rejected_opportunities_are_labelled_and_persisted(tmp_path) -> None:
     # Each label carries forward directional returns keyed to the §49 horizons.
     assert "5m" in rej[0]["label"]["directional_return"]
     store.close()
+
+
+
+def test_evidence_packs_persisted_and_linked(tmp_path) -> None:
+    """§43/§90: every opportunity produces an immutable pack; trades/decisions link to it."""
+    from tc_database import load_evidence_packs, load_trades, open_duckdb_store
+
+    path = tmp_path / "packs.duckdb"
+    store = open_duckdb_store(str(path))
+    result = run_golden_path(SAMPLE, decision_timeframe=Timeframe.M15, forward_bars=16, store=store)
+    packs = load_evidence_packs(store)
+    # One pack per opportunity (§43).
+    assert len(packs) == result.opportunities
+    # Every persisted trade references a pack that exists in the store.
+    pack_ids = {p["pack_id"] for p in packs}
+    for t in load_trades(store):
+        assert t.evidence_pack_id in pack_ids
+    # Packs carry the regime + convergence context.
+    assert "regime" in packs[0]
+    assert "convergence_score" in packs[0]["context"]
+    store.close()

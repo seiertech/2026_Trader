@@ -66,7 +66,7 @@ def cmd_golden_path(args: argparse.Namespace) -> int:
     # Lazy import so the CLI's read-only commands don't pull the runtime/engines.
     for pkg in ("quant-engine", "market-data", "shadow-engine", "risk-engine",
                 "database", "learning-engine", "decision-engine", "convergence-engine",
-                "config"):
+                "evidence-engine", "config"):
         sys.path.insert(0, str(_ROOT / "packages" / pkg / "src"))
     sys.path.insert(0, str(_ROOT / "strategies" / "src"))
     sys.path.insert(0, str(_ROOT / "apps" / "runtime" / "src"))
