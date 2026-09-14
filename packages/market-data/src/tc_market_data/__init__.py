@@ -9,7 +9,14 @@ Phase 1 (Shadow) ships the deterministic :class:`ReplayMarketDataProvider`. The 
 machine (ADR-032) and drops in unchanged.
 """
 
+from tc_market_data.aggregation import aggregate, bucket_start, can_aggregate
 from tc_market_data.contracts import MarketDataProvider
 from tc_market_data.replay import ReplayMarketDataProvider
 
-__all__ = ["MarketDataProvider", "ReplayMarketDataProvider"]
+__all__ = [
+    "MarketDataProvider",
+    "ReplayMarketDataProvider",
+    "aggregate",
+    "bucket_start",
+    "can_aggregate",
+]

@@ -122,6 +122,26 @@ class ReplayMarketDataProvider:
             ask=last.close + half,
         )
 
+    def aggregated_bars(
+        self,
+        instrument: str,
+        timeframe: Timeframe,
+        *,
+        limit: int | None = None,
+    ) -> tuple[Bar, ...]:
+        """Bars at a higher ``timeframe``, aggregated from currently-visible base bars.
+
+        No-look-ahead is preserved: only base bars already closed at/before the clock
+        feed the aggregation, and only COMPLETE higher-timeframe buckets are returned.
+        """
+        from tc_market_data.aggregation import aggregate
+
+        if timeframe is self._tf:
+            return self.bars(instrument, timeframe, limit=limit)
+        base_visible = self.bars(instrument, self._tf)
+        rolled = aggregate(base_visible, self._tf, timeframe, include_partial=False)
+        return rolled[-limit:] if limit is not None else rolled
+
     def bars(
         self,
         instrument: str,
