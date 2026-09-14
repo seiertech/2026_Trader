@@ -60,6 +60,7 @@ pythonpath = [
     "packages/decision-engine/src",
     "packages/convergence-engine/src",
     "packages/evidence-engine/src",
+    "packages/relationship-graph/src",
     "apps/runtime/src",
     "strategies/src",
 ]

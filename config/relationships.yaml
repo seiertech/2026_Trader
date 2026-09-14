@@ -1,0 +1,46 @@
+# Trading Command — relationship graph seed (§21, §22, §144-146).
+# Config-driven (§21). Entities are typed (§18); edges are temporal + directional
+# (§145). polarity: 1 = same-direction, -1 = inverse. strength/confidence in [0,1].
+# This is a SEED slice illustrating the §22 examples; it grows as intelligence lands.
+
+entities:
+  # Themes / drivers
+  - {id: MIDDLE_EAST_ESCALATION, type: THEME, name: Middle East escalation}
+  - {id: ENERGY_RISK, type: THEME, name: Energy supply risk}
+  - {id: USD_STRENGTH, type: THEME, name: US dollar strength}
+  # Institutions
+  - {id: BOE, type: CENTRAL_BANK, name: Bank of England}
+  - {id: FED, type: CENTRAL_BANK, name: US Federal Reserve}
+  # Currencies / commodities / sectors
+  - {id: GBP, type: CURRENCY, name: British pound}
+  - {id: USD, type: CURRENCY, name: US dollar}
+  - {id: GOLD, type: COMMODITY, name: Gold}
+  - {id: OIL, type: COMMODITY, name: Crude oil}
+  - {id: SEMICONDUCTORS, type: SECTOR, name: Semiconductors}
+  - {id: TECHNOLOGY, type: SECTOR, name: Technology}
+  # Tradable instruments (canonical ids match the universe)
+  - {id: XAUUSD, type: INSTRUMENT, name: Gold/USD, canonical: XAUUSD}
+  - {id: USOIL, type: INSTRUMENT, name: US Crude, canonical: USOIL}
+  - {id: GBPUSD, type: INSTRUMENT, name: Pound/USD, canonical: GBPUSD}
+  - {id: NAS100, type: INSTRUMENT, name: US Tech 100, canonical: NAS100}
+
+relationships:
+  # Middle East escalation -> energy risk -> oil & gold up -> USOIL/XAUUSD (§22)
+  - {source: MIDDLE_EAST_ESCALATION, target: ENERGY_RISK, kind: EXPOSED_TO_THEME, strength: 0.9, confidence: 0.8}
+  - {source: ENERGY_RISK, target: OIL, kind: EXPOSED_TO_COMMODITY, strength: 0.85, confidence: 0.8, polarity: 1}
+  - {source: ENERGY_RISK, target: GOLD, kind: EXPOSED_TO_COMMODITY, strength: 0.6, confidence: 0.7, polarity: 1}
+  - {source: OIL, target: USOIL, kind: EXPOSED_TO_COMMODITY, strength: 1.0, confidence: 0.95}
+  - {source: GOLD, target: XAUUSD, kind: EXPOSED_TO_COMMODITY, strength: 1.0, confidence: 0.95}
+
+  # Bank of England -> GBP -> GBPUSD (§22)
+  - {source: BOE, target: GBP, kind: REGULATES, strength: 0.9, confidence: 0.9}
+  - {source: GBP, target: GBPUSD, kind: EXPOSED_TO_COMMODITY, strength: 1.0, confidence: 0.9}
+
+  # USD strength -> gold DOWN (inverse) ; USD -> GBPUSD DOWN (inverse) (§149)
+  - {source: USD_STRENGTH, target: USD, kind: EXPOSED_TO_THEME, strength: 0.9, confidence: 0.85}
+  - {source: USD, target: GOLD, kind: EXPOSED_TO_COMMODITY, strength: 0.7, confidence: 0.7, polarity: -1}
+  - {source: USD, target: GBPUSD, kind: EXPOSED_TO_COMMODITY, strength: 0.6, confidence: 0.7, polarity: -1}
+
+  # Semiconductors -> technology -> NAS100 (§22)
+  - {source: SEMICONDUCTORS, target: TECHNOLOGY, kind: EXPOSED_TO_THEME, strength: 0.8, confidence: 0.8}
+  - {source: TECHNOLOGY, target: NAS100, kind: INDEX_MEMBER_OF, strength: 0.9, confidence: 0.85}

@@ -197,6 +197,25 @@ class HealthState(StrEnum):
     CRITICAL = "CRITICAL"
 
 
+class EntityType(StrEnum):
+    """Entity taxonomy (§18). The node types of the relationship graph."""
+
+    COUNTRY = "COUNTRY"
+    GOVERNMENT = "GOVERNMENT"
+    CENTRAL_BANK = "CENTRAL_BANK"
+    COMPANY = "COMPANY"
+    SECTOR = "SECTOR"
+    COMMODITY = "COMMODITY"
+    CURRENCY = "CURRENCY"
+    INDEX = "INDEX"
+    PERSON = "PERSON"
+    REGULATOR = "REGULATOR"
+    INDUSTRY = "INDUSTRY"
+    REGION = "REGION"
+    THEME = "THEME"          # themes participate in the graph (§21 THEME→INSTRUMENT)
+    INSTRUMENT = "INSTRUMENT"  # tradable instruments are graph nodes too (§22)
+
+
 class RelationshipKind(StrEnum):
     """Supply-chain / graph relationship types (§144)."""
 
