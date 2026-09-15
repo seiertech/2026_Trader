@@ -66,9 +66,13 @@ def cmd_golden_path(args: argparse.Namespace) -> int:
     # Lazy import so the CLI's read-only commands don't pull the runtime/engines.
     for pkg in ("quant-engine", "market-data", "shadow-engine", "risk-engine",
                 "database", "learning-engine", "decision-engine", "convergence-engine",
-                "evidence-engine", "config"):
+                "evidence-engine", "config", "mt5-provider", "market-permissions",
+                "opportunity-engine", "event-engine", "entity-engine", "macro-engine",
+                "portfolio-engine", "strategic-materials", "healthcare-intelligence",
+                "supply-chain-engine", "cross-market-engine"):
         sys.path.insert(0, str(_ROOT / "packages" / pkg / "src"))
     sys.path.insert(0, str(_ROOT / "strategies" / "src"))
+    sys.path.insert(0, str(_ROOT / "agents" / "src"))
     sys.path.insert(0, str(_ROOT / "apps" / "runtime" / "src"))
     from tc_runtime.golden_path import format_report, run_golden_path
 
@@ -96,9 +100,13 @@ def cmd_golden_path(args: argparse.Namespace) -> int:
 def cmd_snapshot(args: argparse.Namespace) -> int:
     for pkg in ("quant-engine", "market-data", "shadow-engine", "risk-engine",
                 "database", "learning-engine", "decision-engine", "convergence-engine",
-                "evidence-engine", "config"):
+                "evidence-engine", "config", "mt5-provider", "market-permissions",
+                "opportunity-engine", "event-engine", "entity-engine", "macro-engine",
+                "portfolio-engine", "strategic-materials", "healthcare-intelligence",
+                "supply-chain-engine", "cross-market-engine"):
         sys.path.insert(0, str(_ROOT / "packages" / pkg / "src"))
     sys.path.insert(0, str(_ROOT / "strategies" / "src"))
+    sys.path.insert(0, str(_ROOT / "agents" / "src"))
     sys.path.insert(0, str(_ROOT / "apps" / "runtime" / "src"))
     from tc_runtime.golden_path import run_golden_path
     from tc_runtime.snapshot import write_snapshot

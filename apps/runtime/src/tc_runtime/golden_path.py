@@ -177,8 +177,12 @@ def run_golden_path(
                 convergence_score=conv.score,
                 domain_evidence=conv.contributing,
                 convergence_detail=conv.detail,
-                extra_context={"rationale": setup.rationale,
-                               "reward_risk": str(setup.reward_risk)},
+                extra_context={
+                    "rationale": setup.rationale,
+                    "reward_risk": str(setup.reward_risk),
+                    # Specialist opinions ride on the pack for later attribution (§91).
+                    "specialists": list(_specialist_assessments(regime, setup)),
+                },
             )
             if persist_pack is not None:
                 persist_pack(store, pack)
@@ -271,6 +275,32 @@ def run_golden_path(
         rejected=rejected,
         decisions=decisions,
     )
+
+
+def _specialist_assessments(regime, setup, exposure=None) -> tuple[dict, ...]:
+    """Run the specialist roster over the current context (§58-66).
+
+    Advisory only — assessments are recorded on the Evidence Pack for attribution
+    (§91), and they cannot alter risk (§55, TC-ADR-012).
+    """
+    from tc_agents import all_specialists
+
+    context = {
+        "regime": regime,
+        "instrument": setup.strategy and None,  # placeholder; instrument set by caller
+        "direction": setup.direction,
+        "exposure": exposure,
+    }
+    out = []
+    for s in all_specialists():
+        a = s.assess(context)
+        # Only record specialists that actually had something to say.
+        if a.confidence > 0.15:
+            out.append({
+                "specialist": a.specialist, "verdict": a.verdict,
+                "supports": a.supports, "confidence": a.confidence,
+            })
+    return tuple(out)
 
 
 def _convergence_inputs(regime, bias: str) -> list[DomainInput]:

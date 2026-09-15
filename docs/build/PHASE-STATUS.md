@@ -195,3 +195,31 @@ Config seeds added: `relationships.yaml`, `themes.yaml`, `companies.yaml`.
 collapse (§39/§148), AI advisory-only (§55/TC-ADR-012), and the Prime Directive —
 no return target (§0). Live MT5 data (Windows edge, ADR-032) remains the one gated
 dependency, deferred by design.
+
+
+## Backlog clearance — remaining buildable modules (final conveyor)
+
+The buildable-now backlog is now empty. Everything below is implemented + tested.
+
+| Module | Spec | Capability |
+|---|---|---|
+| `tc_mt5` | §94-96, ADR-032 | **MT5 adapter skeleton** — same provider contracts; lazy Windows-only import so it's developable on Linux; fail-closed when unbound; symbol discovery; drops the forming bar (§126); refuses orders in SHADOW (§79) |
+| `tc_permissions` | §133,§153 | Permission state machine; ADR required for any promotion; LIVE needs OOS edge + sample + ≥2 regimes (§75); crypto never promotable; demotion always allowed |
+| `tc_opportunity` | §40-42,§70 | Opportunity lifecycle; expiry mandatory; WAIT keeps it live; reassessment is append-only (§90); past-expiry forced to REJECT |
+| `tc_events` | §15-17,§77 | Event families (scheduled/breaking/developing); deterministic status lifecycle; high-impact blackout windows |
+| `tc_entities` | §18,§28 | Gazetteer entity extraction (auditable, longest-form-wins, word-boundary safe); unknown entities dropped not invented |
+| `tc_macro` | §46,§63 | Macro releases w/ surprise + σ-normalisation; direction combines surprise sign × series polarity; in-line print = UNCERTAIN |
+| `tc_portfolio` | §66,§77 | Multi-position exposure; **correlated clusters** (USD majors / indices / metals / energy) add toward one cap; opposing-book detection |
+| `tc_agents` | §58-66 | Nine specialists as **thin** interpreters over the engines; advisory-only (`overrides_risk` False); missing context ⇒ NEUTRAL |
+| `tc_materials` | §137-138 | Materials taxonomy + **transmission chains** (not price momentum); restriction bearish downstream / bullish for the material |
+| `tc_healthcare` | §139-143 | Event taxonomy + issuer polarity; authority sources outrank news; higher-order effects decay |
+| `tc_supply` | §144 | Supply chains as graph edges following flow of goods; wires into the live graph |
+| `tc_crossmarket` | §149 | **Cleanest tradable expression** — hop penalty, liquidity, permission; untradable never selected |
+
+**Wired live:** specialist assessments now ride on the immutable Evidence Pack
+(verified: 4 assessments with verdict/lean/confidence persisted per pack), available to
+the attribution engine to measure whether each specialist adds value (§91, TC-ADR-019).
+
+**Remaining work is exclusively data-gated:** live MT5 read, real historical load, the
+edge-validation verdict, paper, and limited-live. Nothing else is buildable until the
+Windows edge is up.
