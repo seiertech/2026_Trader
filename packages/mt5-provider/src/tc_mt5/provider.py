@@ -153,7 +153,9 @@ class Mt5Terminal:
     def symbol_info_tick(self, broker_symbol: str) -> Any:
         return self._require().symbol_info_tick(broker_symbol)
 
-    def copy_rates_from_pos(self, broker_symbol: str, timeframe: Any, start: int, count: int) -> Any:
+    def copy_rates_from_pos(
+        self, broker_symbol: str, timeframe: Any, start: int, count: int
+    ) -> Any:
         return self._require().copy_rates_from_pos(broker_symbol, timeframe, start, count)
 
     def positions_get(self) -> Sequence[Any]:
