@@ -56,10 +56,15 @@ Vertical + gated build (§107). Current phase and open decisions are tracked in:
 
 | Phase | Scope | Status |
 |------:|-------|--------|
-| 0 | Foundation: domain model, config, database, logging, tests, dashboard shell | 🚧 in progress |
-| 1 | MT5 live read (via provider; needs Windows MT5 host — see OQ-2) | ⏳ |
-| 2–12 | Historical store → quant → news → graph → convergence → analogues → AI → shadow → learning → control plane | ⏳ |
+| 0 | Foundation: domain model, config, database, logging, tests, dashboard shell | ✅ done |
+| 1 | MT5 live read (via provider; needs Windows MT5 host — ADR-032) | 🟡 contracts + replay provider done; live adapter pending Windows host |
+| 2–12 | Historical store → quant → news → graph → convergence → analogues → AI → shadow → learning → control plane | 🟡 all built brain-side on replay/synthetic data (see docs/build/PHASE-STATUS.md) |
 | 13–14 | Paper → limited live (gated, evidence-earned) | ⏳ |
+
+**214 tests, ruff clean.** The full intelligence + decision + risk + shadow + learning
+pipeline runs end-to-end on replay data. The one gated dependency is live MT5 data
+(Windows edge, ADR-032) — deferred by design, not blocking. See
+[docs/build/PHASE-STATUS.md](docs/build/PHASE-STATUS.md) for the per-package status.
 
 ## Secrets
 

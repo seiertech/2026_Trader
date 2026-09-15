@@ -169,3 +169,29 @@ WAIT; all forward-labelled by strategy; every one measured (§50).
 
 **Tests:** 160 total (risk gate 14, decision 11, critic 11, strategies 17, + prior).
 ruff clean.
+
+
+## Intelligence conveyor — brain-side build-out (no live data)
+
+A full conveyor pass built the intelligence and control layers deterministically, on
+the replay/synthetic data, with no Windows/MT5 dependency. **214 tests, ruff clean.**
+
+| Package | Spec | What it does |
+|---|---|---|
+| `tc_convergence` | §36-39, §150 | evidence-domain 0-100 score; independence + correlated-collapse; retains components |
+| `tc_evidence` | §43, §90 | immutable Evidence Pack at decision time; pack_id threaded through decision + trade |
+| `tc_graph` | §18, §21-22, §143-146 | typed entities + temporal directional edges; event→instrument propagation w/ per-hop confidence decay + inverse polarity |
+| `tc_themes` | §20, §147 | durable themes w/ lifecycle (EMERGING…RESOLVED) from evidence/velocity/confirmation; theme→instrument via graph |
+| `tc_leaders` | §19, §148 | config baskets; a correlated basket move = ONE factor (not N), tagged for convergence collapse |
+| `tc_news` | §24, §27, §28-32 | IntelligenceProvider adapters (offline FixtureProvider); dedup (5 orgs → 1 event), velocity, novelty, classification |
+| `tc_historical` | §51-53 | analogue matching + §52 outcome stats; §53 small-sample honesty (8/10 → WEAK, wide CI) |
+| `tc_ai` | §54-57 | AiProvider abstraction + routing tiers; advisory-only assessments; **cannot** override risk (TC-ADR-012) |
+| dashboard cockpit | §86, §98-102 | `tc snapshot` → JSON; Next.js renders cockpit / funnel / rejection / performance |
+
+Config seeds added: `relationships.yaml`, `themes.yaml`, `companies.yaml`.
+
+**Doctrine held throughout:** deterministic-first (§55), provider abstraction
+(TC-ADR-010), no-look-ahead (§89/§126), small-sample honesty (§53), correlated-evidence
+collapse (§39/§148), AI advisory-only (§55/TC-ADR-012), and the Prime Directive —
+no return target (§0). Live MT5 data (Windows edge, ADR-032) remains the one gated
+dependency, deferred by design.
