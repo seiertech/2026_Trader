@@ -93,6 +93,29 @@ def cmd_golden_path(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_snapshot(args: argparse.Namespace) -> int:
+    for pkg in ("quant-engine", "market-data", "shadow-engine", "risk-engine",
+                "database", "learning-engine", "decision-engine", "convergence-engine",
+                "evidence-engine", "config"):
+        sys.path.insert(0, str(_ROOT / "packages" / pkg / "src"))
+    sys.path.insert(0, str(_ROOT / "strategies" / "src"))
+    sys.path.insert(0, str(_ROOT / "apps" / "runtime" / "src"))
+    from tc_runtime.golden_path import run_golden_path
+    from tc_runtime.snapshot import write_snapshot
+
+    sample = _ROOT / "data" / "reference" / "XAUUSD_1m_sample.csv"
+    if not sample.exists():
+        print(f"sample data not found: {sample}", file=sys.stderr)
+        return 2
+    out = args.out if str(args.out).startswith("/") else str(_ROOT / args.out)
+    result = run_golden_path(sample)
+    path = write_snapshot(result, out)
+    print(f"wrote cockpit snapshot -> {path}")
+    print(f"  opportunities={result.opportunities} decisions={result.decisions} "
+          f"trades={result.metrics.trades} equity=£{result.ending_balance}")
+    return 0
+
+
 def cmd_attribution(args: argparse.Namespace) -> int:
     for pkg in ("database", "shadow-engine", "risk-engine", "learning-engine"):
         sys.path.insert(0, str(_ROOT / "packages" / pkg / "src"))
@@ -149,6 +172,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="comma-separated attribution dimensions (default: instrument,direction)",
     )
     att.set_defaults(fn=cmd_attribution)
+    snap = sub.add_parser(
+        "snapshot", help="run the golden path and emit a cockpit snapshot JSON (§98-102)"
+    )
+    snap.add_argument("--out", metavar="PATH.json",
+                      default="apps/dashboard/public/snapshot.json",
+                      help="where to write the snapshot (default: dashboard public dir)")
+    snap.set_defaults(fn=cmd_snapshot)
     stubbed = (
         "opportunities", "positions", "performance", "risk",
         "events", "pause", "resume-shadow",
