@@ -76,6 +76,10 @@ pythonpath = [
     "apps/runtime/src",
     "strategies/src",
     "agents/src",
+    "packages/strategic-materials/src",
+    "packages/healthcare-intelligence/src",
+    "packages/supply-chain-engine/src",
+    "packages/cross-market-engine/src",
 ]
 addopts = "-q"
 
