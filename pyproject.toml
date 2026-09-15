@@ -64,6 +64,7 @@ pythonpath = [
     "packages/theme-engine/src",
     "packages/market-leaders/src",
     "packages/news-ingestion/src",
+    "packages/historical-engine/src",
     "apps/runtime/src",
     "strategies/src",
 ]
