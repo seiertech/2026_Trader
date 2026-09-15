@@ -75,6 +75,7 @@ pythonpath = [
     "packages/portfolio-engine/src",
     "apps/runtime/src",
     "strategies/src",
+    "agents/src",
 ]
 addopts = "-q"
 
