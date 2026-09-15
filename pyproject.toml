@@ -66,6 +66,13 @@ pythonpath = [
     "packages/news-ingestion/src",
     "packages/historical-engine/src",
     "packages/ai-gateway/src",
+    "packages/mt5-provider/src",
+    "packages/market-permissions/src",
+    "packages/opportunity-engine/src",
+    "packages/event-engine/src",
+    "packages/entity-engine/src",
+    "packages/macro-engine/src",
+    "packages/portfolio-engine/src",
     "apps/runtime/src",
     "strategies/src",
 ]
